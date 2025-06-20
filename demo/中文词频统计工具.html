@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文本分析工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts-wordcloud@2.1.0/dist/echarts-wordcloud.min.js"></script>
+</head>
+<body class="bg-gray-100 min-h-screen py-8 px-4">
+    <div class="max-w-6xl mx-auto">
+        <!-- 标题卡片 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h1 class="text-3xl font-bold text-center text-gray-800">智能文本分析工具</h1>
+            <p class="text-center text-gray-600 mt-2">深度分析您的文本内容</p>
+        </div>
+
+        <!-- 输入区域 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div class="mb-6">
+                <label for="textInput" class="block text-gray-700 text-sm font-medium mb-2">请输入要分析的文本：</label>
+                <textarea
+                    id="textInput"
+                    class="w-full h-40 p-4 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                    placeholder="在此输入文本..."
+                ></textarea>
+            </div>
+
+            <div class="flex justify-center">
+                <button
+                    onclick="analyzeText()"
+                    class="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-6 rounded-lg transition duration-200 transform hover:scale-105"
+                >
+                    分析文本
+                </button>
+            </div>
+        </div>
+
+        <!-- 基础统计结果 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">基础统计</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <h3 class="text-lg font-medium text-gray-700">总字符数</h3>
+                    <p id="totalChars" class="text-2xl font-bold text-blue-600 mt-2">0</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <h3 class="text-lg font-medium text-gray-700">汉字数</h3>
+                    <p id="chineseChars" class="text-2xl font-bold text-blue-600 mt-2">0</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <h3 class="text-lg font-medium text-gray-700">英文字母数</h3>
+                    <p id="englishChars" class="text-2xl font-bold text-blue-600 mt-2">0</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4 text-center">
+                    <h3 class="text-lg font-medium text-gray-700">数字字符数</h3>
+                    <p id="numberChars" class="text-2xl font-bold text-blue-600 mt-2">0</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 阅读难度分析 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-semibold mb-4">阅读难度分析</h2>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-700">阅读难度指数</h3>
+                    <p id="readabilityScore" class="text-2xl font-bold text-blue-600 mt-2">-</p>
+                    <p id="readabilityLevel" class="text-sm text-gray-600 mt-1">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-700">平均句子长度</h3>
+                    <p id="avgSentenceLength" class="text-2xl font-bold text-blue-600 mt-2">-</p>
+                </div>
+                <div class="bg-gray-50 rounded-lg p-4">
+                    <h3 class="text-lg font-medium text-gray-700">生僻字比例</h3>
+                    <p id="rarityRate" class="text-2xl font-bold text-blue-600 mt-2">-</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 词云图 -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">高频词云图</h2>
+            <div id="wordCloud" class="w-full h-96"></div>
+        </div>
+    </div>
+
+    <script>
+        // 初始化词云图
+        let wordCloudChart;
+        try {
+            wordCloudChart = echarts.init(document.getElementById('wordCloud'));
+        } catch (error) {
+            console.error('初始化词云图失败:', error);
+        }
+
+        // 常用汉字集合（前1000个常用字）
+        const commonChineseChars = new Set('的一是在不了有和人这中大为上个国我以要他时来用们生到作地于出就分对成会可主发年动同工也能下过子说产种面而方后多定行学法所民得经十三之进着等部度家电力里如水化高自二理起小物现实加量都两体制机当使点从业本去把性好应开它合还因由其些然前外天政四日那社义事平形相全表间样与关各重新线内数正心反你明看原又么利比或但质气第向道命此变条只没结解问意建月公无系军很情者最立代想已通并提直题党程展五果料象员革位入常文总次品式活设及管特件长求老头基资边流路级少图山统接知较将组见计别她手角期根论运农指几九区强放决西被干做必战先回则任取据处队南给色光门即保治北造百规热领七海口东导器压志世金增争济阶油思术极交受联什认六共权收证改清己美再采转更单风切打白教速花带安场身车例真务具万每目至达走积示议声报斗完类八离华名确才科张信马节话米整空元况今集温传土许步群广石记需段研界拉林律叫且究观越织装影算低持音众书布复容儿须际商非验连断深难近矿千周委素技备半办青省列习响约支般史感劳便团往酸历市克何除消构府称太准精值号率族维划选标写存候毛亲快效斯院查江型眼王按格养易置派层片始却专状育厂京识适属圆包火住调满县局照参红细引听该铁价严龙飞');
+
+        // 常用词词典
+        const commonWords = new Set([
+            // 4字词
+            '不可思议', '不计其数', '不约而同', '持之以恒', '充满活力', '大势所趋', '耳目一新',
+            '防不胜防', '与日俱增', '自强不息', '综上所述', '自始至终', '知难而进', '知己知彼',
+            // 3字词
+            '不得不', '不由得', '不知不觉', '成功率', '创新性', '纯天然', '大规模', '大面积',
+            '多样化', '发展性', '反复性', '高科技', '工业化', '国际化', '好起来', '互联网',
+            '及时性', '可持续', '老年人', '联系性', '灵活性', '明显性', '年轻人', '普遍性',
+            '人工智能', '深层次', '实用性', '特殊性', '突发性', '完整性', '系统性', '先进性',
+            '新鲜感', '研究生', '一体化', '应用性', '有效性', '原创性', '原子能', '真实性',
+            '重要性', '主观性', '主动性', '专业化', '自然界', '综合性', '最大化',
+            // 2字词
+            '安全', '把握', '帮助', '报告', '保护', '变化', '表现', '参与', '操作', '测试',
+            '产品', '成果', '成功', '成为', '持续', '创新', '打开', '达到', '带来', '单位',
+            '当前', '到达', '得到', '等待', '发生', '发现', '发展', '方式', '方向', '放弃',
+            '分析', '服务', '改变', '概念', '感觉', '工作', '贡献', '观察', '管理', '过程',
+            '合作', '获得', '机会', '继续', '加强', '建设', '建议', '交流', '教育', '结果',
+            '解决', '开始', '科技', '可能', '理解', '力量', '历史', '联系', '了解', '领域',
+            '目标', '能力', '年代', '培养', '品质', '其他', '企业', '起来', '群众', '人民',
+            '认为', '任务', '社会', '生活', '时间', '实现', '市场', '事情', '世界', '收入',
+            '手段', '水平', '思考', '特点', '提供', '提高', '体系', '条件', '投资', '推动',
+            '完成', '问题', '系统', '下去', '现象', '相关', '效果', '新闻', '信息', '形成',
+            '学习', '研究', '要求', '意义', '意见', '引起', '影响', '永远', '优势', '原因',
+            '运用', '在于', '增加', '展开', '战略', '知识', '质量', '重点', '重要', '主要',
+            '准备', '资源', '自己', '总结', '组织', '作用', '发布', '支持', '实施', '推进',
+            '开展', '构建', '促进', '实践', '创造', '提升', '优化', '深化', '规范', '强化',
+            '突出', '落实', '做好', '加快', '推广', '完善', '创建', '开发', '形式', '基础'
+        ]);
+
+        // 改进的中文分词函数
+        function improvedChineseSegment(text) {
+            const words = [];
+            let i = 0;
+            
+            while (i < text.length) {
+                let found = false;
+                
+                // 尝试匹配4字词
+                if (i + 4 <= text.length) {
+                    const word4 = text.slice(i, i + 4);
+                    if (commonWords.has(word4)) {
+                        words.push(word4);
+                        i += 4;
+                        found = true;
+                        continue;
+                    }
+                }
+                
+                // 尝试匹配3字词
+                if (i + 3 <= text.length) {
+                    const word3 = text.slice(i, i + 3);
+                    if (commonWords.has(word3)) {
+                        words.push(word3);
+                        i += 3;
+                        found = true;
+                        continue;
+                    }
+                }
+                
+                // 尝试匹配2字词
+                if (i + 2 <= text.length) {
+                    const word2 = text.slice(i, i + 2);
+                    if (commonWords.has(word2)) {
+                        words.push(word2);
+                        i += 2;
+                        found = true;
+                        continue;
+                    }
+                }
+                
+                // 如果没有匹配到词典中的词，使用2字滑动窗口
+                if (!found && i + 1 < text.length) {
+                    const char1 = text[i];
+                    const char2 = text[i + 1];
+                    if (/[\u4e00-\u9fa5]/.test(char1) && /[\u4e00-\u9fa5]/.test(char2)) {
+                        words.push(char1 + char2);
+                        i += 1; // 滑动窗口，重叠匹配
+                    } else {
+                        i += 1;
+                    }
+                } else if (!found) {
+                    i += 1;
+                }
+            }
+            
+            return words;
+        }
+
+        function analyzeText() {
+            try {
+                const text = document.getElementById('textInput').value;
+                if (!text.trim()) {
+                    alert('请输入要分析的文本！');
+                    return;
+                }
+
+                // 基础字符统计
+                const stats = {
+                    total: text.length,
+                    chinese: 0,
+                    english: 0,
+                    numbers: 0,
+                    punctuation: 0
+                };
+
+                // 字符分类统计
+                for (let char of text) {
+                    if (/[\u4e00-\u9fa5]/.test(char)) {
+                        stats.chinese++;
+                    } else if (/[a-zA-Z]/.test(char)) {
+                        stats.english++;
+                    } else if (/[0-9]/.test(char)) {
+                        stats.numbers++;
+                    } else if (/[^\s]/.test(char)) {
+                        stats.punctuation++;
+                    }
+                }
+
+                // 更新基础统计显示
+                document.getElementById('totalChars').textContent = stats.total;
+                document.getElementById('chineseChars').textContent = stats.chinese;
+                document.getElementById('englishChars').textContent = stats.english;
+                document.getElementById('numberChars').textContent = stats.numbers;
+
+                // 计算阅读难度
+                const sentences = text.split(/[。！？.!?]+/).filter(s => s.trim());
+                const avgSentenceLength = sentences.length ? (stats.total / sentences.length).toFixed(1) : 0;
+                
+                // 计算生僻字比率
+                let uncommonChars = 0;
+                for (let char of text) {
+                    if (/[\u4e00-\u9fa5]/.test(char) && !commonChineseChars.has(char)) {
+                        uncommonChars++;
+                    }
+                }
+                const rarityRate = stats.chinese ? ((uncommonChars / stats.chinese) * 100).toFixed(1) + '%' : '0%';
+
+                // 计算阅读难度指数（0-100）
+                const readabilityScore = Math.min(100, Math.round(
+                    (avgSentenceLength * 2) + // 句子长度影响
+                    (rarityRate.replace('%', '') * 1.5) + // 生僻字影响
+                    (stats.total > 1000 ? 20 : stats.total / 50) // 文本长度影响
+                ));
+
+                // 确定阅读难度级别
+                let readabilityLevel = '';
+                if (readabilityScore < 30) readabilityLevel = '非常容易';
+                else if (readabilityScore < 50) readabilityLevel = '容易';
+                else if (readabilityScore < 70) readabilityLevel = '中等';
+                else if (readabilityScore < 85) readabilityLevel = '较难';
+                else readabilityLevel = '困难';
+
+                // 更新阅读难度显示
+                document.getElementById('readabilityScore').textContent = readabilityScore;
+                document.getElementById('readabilityLevel').textContent = readabilityLevel;
+                document.getElementById('avgSentenceLength').textContent = avgSentenceLength;
+                document.getElementById('rarityRate').textContent = rarityRate;
+
+                // 使用改进的分词函数
+                const words = improvedChineseSegment(text);
+                const wordCount = {};
+                words.forEach(word => {
+                    wordCount[word] = (wordCount[word] || 0) + 1;
+                });
+
+                // 转换为词云数据格式
+                const wordCloudData = Object.entries(wordCount)
+                    .map(([name, value]) => ({ name, value }))
+                    .sort((a, b) => b.value - a.value)
+                    .slice(0, 100); // 只显示前100个高频词
+
+                if (wordCloudChart) {
+                    // 配置词云图
+                    const option = {
+                        tooltip: {
+                            show: true,
+                            formatter: function(params) {
+                                return params.data.name + ': ' + params.data.value + '次';
+                            }
+                        },
+                        series: [{
+                            type: 'wordCloud',
+                            shape: 'circle',
+                            left: 'center',
+                            top: 'center',
+                            width: '80%',
+                            height: '80%',
+                            right: null,
+                            bottom: null,
+                            sizeRange: [12, 50],
+                            rotationRange: [-45, 45],
+                            rotationStep: 5,
+                            gridSize: 20,
+                            drawOutOfBound: false,
+                            layoutAnimation: true,
+                            textStyle: {
+                                fontFamily: 'sans-serif',
+                                fontWeight: 'bold',
+                                color: function () {
+                                    return 'rgb(' + [
+                                        Math.round(Math.random() * 155 + 100),
+                                        Math.round(Math.random() * 155 + 100),
+                                        Math.round(Math.random() * 155 + 100)
+                                    ].join(',') + ')';
+                                }
+                            },
+                            emphasis: {
+                                focus: 'self',
+                                textStyle: {
+                                    shadowBlur: 10,
+                                    shadowColor: '#333'
+                                }
+                            },
+                            data: wordCloudData
+                        }]
+                    };
+
+                    // 清空之前的图表并重新渲染
+                    wordCloudChart.clear();
+                    wordCloudChart.setOption(option);
+                }
+            } catch (error) {
+                console.error('分析文本时发生错误:', error);
+                alert('分析文本时发生错误，请查看控制台获取详细信息。');
+            }
+        }
+
+        // 窗口大小改变时重绘词云图
+        window.addEventListener('resize', function() {
+            if (wordCloudChart) {
+                wordCloudChart.resize();
+            }
+        });
+    </script>
+</body>
+</html> 

@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>优雅二维码生成器</title>
+    <!-- 引入字体 -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>优雅二维码生成器</h1>
+            <p class="subtitle">轻松创建专业的二维码</p>
+        </header>
+
+        <main>
+            <div class="input-section">
+                <div class="input-group">
+                    <input type="text" id="qr-input" placeholder="输入链接或文字..." autocomplete="off">
+                    <button id="reset-btn" class="icon-btn" title="重置">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 2.97-2.17 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8zm-6 8c0-1.65.67-3.15 1.76-4.24L6.34 7.34C4.9 8.79 4 10.79 4 13c0 4.08 3.05 7.44 7 7.93v-2.02c-2.83-.48-5-2.94-5-5.91z"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+
+            <div class="qr-container">
+                <div class="qr-preview">
+                    <div id="qr-code"></div>
+                </div>
+                
+                <div class="customization-panel">
+                    <div class="panel-section">
+                        <h3>颜色设置</h3>
+                        <div class="color-inputs">
+                            <div class="color-group">
+                                <label for="fg-color">前景色</label>
+                                <input type="color" id="fg-color" value="#000000">
+                            </div>
+                            <div class="color-group">
+                                <label for="bg-color">背景色</label>
+                                <input type="color" id="bg-color" value="#ffffff">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3>样式设置</h3>
+                        <div class="style-inputs">
+                            <div class="range-group">
+                                <label for="size-range">尺寸</label>
+                                <input type="range" id="size-range" min="200" max="500" value="300" step="10">
+                                <span class="range-value">300px</span>
+                            </div>
+                            <div class="range-group">
+                                <label for="radius-range">圆角</label>
+                                <input type="range" id="radius-range" min="0" max="50" value="0" step="5">
+                                <span class="range-value">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel-section">
+                        <h3>Logo设置</h3>
+                        <div class="logo-upload">
+                            <input type="file" id="logo-input" accept="image/*" hidden>
+                            <label for="logo-input" class="upload-btn">
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/>
+                                </svg>
+                                <span>上传Logo</span>
+                            </label>
+                            <button id="remove-logo" class="text-btn" hidden>移除Logo</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="action-buttons">
+                <button id="copy-btn" class="primary-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
+                    </svg>
+                    复制二维码
+                </button>
+                <button id="download-btn" class="primary-btn">
+                    <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                    </svg>
+                    下载PNG
+                </button>
+            </div>
+        </main>
+
+        <footer>
+            <p class="tips">提示：上传Logo可以增加品牌辨识度，建议使用透明背景的图片</p>
+        </footer>
+    </div>
+
+    <!-- 引入QRCode.js库 -->
+    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
+    <script>
+        // 如果CDN加载失败，使用本地备份
+        window.addEventListener('error', function(e) {
+            if (e.target.src && e.target.src.includes('qrcode.min.js')) {
+                const script = document.createElement('script');
+                script.src = 'lib/qrcode.min.js';
+                document.body.appendChild(script);
+            }
+        }, true);
+    </script>
+    <script src="script.js"></script>
+</body>
+</html> 

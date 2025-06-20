@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>在线视频播放工具</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
+        }
+        .loading {
+            animation: pulse 2s infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <!-- 标题部分 -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800 mb-2">在线视频播放工具</h1>
+            <p class="text-gray-600">支持主流视频格式在线播放</p>
+        </div>
+
+        <!-- 主要内容卡片 -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <!-- 输入区域 -->
+            <div class="flex flex-col md:flex-row gap-4 mb-6">
+                <input type="text" 
+                       id="videoUrl" 
+                       placeholder="请输入视频链接 (支持mp4, webm, ogg, mkv等格式)" 
+                       class="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <div class="flex gap-2">
+                    <button onclick="checkVideo()" 
+                            class="px-6 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 transition duration-200">
+                        检查
+                    </button>
+                    <button onclick="playVideo()" 
+                            id="playBtn" 
+                            disabled 
+                            class="px-6 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed">
+                        播放
+                    </button>
+                </div>
+            </div>
+
+            <!-- 状态提示 -->
+            <div id="status" class="hidden mb-4 p-4 rounded-lg"></div>
+
+            <!-- 视频播放区域 -->
+            <div id="videoContainer" class="hidden">
+                <video id="videoPlayer" 
+                       controls 
+                       class="w-full rounded-lg shadow-md">
+                    您的浏览器不支持 HTML5 视频播放。
+                </video>
+                <!-- 添加iframe作为备选播放方式 -->
+                <iframe id="videoIframe"
+                        class="w-full rounded-lg shadow-md mt-4 hidden"
+                        allowfullscreen>
+                </iframe>
+            </div>
+        </div>
+
+        <!-- 支持格式信息卡片 -->
+        <div class="bg-white rounded-xl shadow-lg p-6">
+            <h2 class="text-xl font-semibold mb-4">支持的视频格式</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-medium text-gray-800 mb-2">MP4</h3>
+                    <p class="text-sm text-gray-600">最常见的视频格式，兼容性最好</p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-medium text-gray-800 mb-2">WebM</h3>
+                    <p class="text-sm text-gray-600">开源格式，适合网页播放</p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-medium text-gray-800 mb-2">Ogg</h3>
+                    <p class="text-sm text-gray-600">开放的多媒体容器格式</p>
+                </div>
+                <div class="p-4 bg-gray-50 rounded-lg">
+                    <h3 class="font-medium text-gray-800 mb-2">MKV</h3>
+                    <p class="text-sm text-gray-600">支持多种编码的容器格式，需要浏览器支持相应编码</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const videoUrl = document.getElementById('videoUrl');
+        const videoPlayer = document.getElementById('videoPlayer');
+        const videoIframe = document.getElementById('videoIframe');
+        const videoContainer = document.getElementById('videoContainer');
+        const playBtn = document.getElementById('playBtn');
+        const status = document.getElementById('status');
+
+        // 处理URL格式
+        function formatVideoUrl(url) {
+            // 移除URL开头的@符号
+            url = url.replace(/^@/, '');
+            
+            // 确保URL以http://或https://开头
+            if (!url.match(/^https?:\/\//)) {
+                url = 'http://' + url;
+            }
+
+            try {
+                // 处理URL编码
+                const urlObj = new URL(url);
+                // 返回正确编码的URL
+                return urlObj.href;
+            } catch (error) {
+                showStatus('视频链接格式无效', 'error', '请检查链接格式是否正确');
+                return null;
+            }
+        }
+
+        function showStatus(message, type, details = '') {
+            const statusText = details ? `${message}<br><span class="text-sm opacity-75">${details}</span>` : message;
+            status.className = `mb-4 p-4 rounded-lg ${type === 'error' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`;
+            status.innerHTML = statusText;
+            status.classList.remove('hidden');
+        }
+
+        function switchToIframeMode(url) {
+            videoPlayer.classList.add('hidden');
+            videoIframe.classList.remove('hidden');
+            videoIframe.src = url;
+            videoContainer.classList.remove('hidden');
+            showStatus('使用备选播放模式', 'success', '如果视频无法播放，请尝试直接在新标签页中打开');
+        }
+
+        function checkVideo() {
+            let url = videoUrl.value.trim();
+            if (!url) {
+                showStatus('请输入视频链接', 'error');
+                return;
+            }
+
+            // 格式化URL
+            url = formatVideoUrl(url);
+            if (!url) {
+                return; // formatVideoUrl已经显示了错误信息
+            }
+
+            // 检查文件扩展名
+            const fileExtension = url.split('.').pop().toLowerCase();
+            const supportedFormats = ['mp4', 'webm', 'ogg', 'mkv'];
+            
+            if (!supportedFormats.includes(fileExtension)) {
+                showStatus('不支持的视频格式。请使用 MP4、WebM、Ogg 或 MKV 格式', 'error');
+                return;
+            }
+
+            showStatus('正在检查视频...', 'info');
+
+            // 创建临时video元素来检查视频
+            const tempVideo = document.createElement('video');
+            
+            // 设置超时检测
+            const timeoutId = setTimeout(() => {
+                showStatus('视频加载超时，尝试使用备选播放模式', 'info');
+                switchToIframeMode(url);
+                playBtn.disabled = false;
+            }, 5000);
+
+            // 检查视频是否可以播放
+            tempVideo.onloadeddata = () => {
+                clearTimeout(timeoutId);
+                showStatus('视频检查通过，可以播放！', 'success');
+                playBtn.disabled = false;
+                // 更新输入框中的URL为格式化后的URL
+                videoUrl.value = url;
+                // 使用video标签模式
+                videoPlayer.classList.remove('hidden');
+                videoIframe.classList.add('hidden');
+            };
+
+            tempVideo.onerror = (e) => {
+                clearTimeout(timeoutId);
+                // 如果video标签播放失败，切换到iframe模式
+                switchToIframeMode(url);
+                playBtn.disabled = false;
+            };
+
+            // 设置视频源
+            try {
+                tempVideo.src = url;
+            } catch (error) {
+                clearTimeout(timeoutId);
+                switchToIframeMode(url);
+                playBtn.disabled = false;
+            }
+        }
+
+        function playVideo() {
+            let url = videoUrl.value.trim();
+            url = formatVideoUrl(url);
+            if (!url) {
+                return;
+            }
+            
+            if (!videoPlayer.classList.contains('hidden')) {
+                // 使用video标签播放
+                videoPlayer.src = url;
+                videoContainer.classList.remove('hidden');
+                videoPlayer.play().catch(error => {
+                    showStatus('视频播放出错，切换到备选播放模式', 'info');
+                    switchToIframeMode(url);
+                });
+            } else {
+                // 使用iframe播放
+                switchToIframeMode(url);
+            }
+        }
+
+        // 监听输入变化，重置播放按钮状态
+        videoUrl.addEventListener('input', () => {
+            playBtn.disabled = true;
+            status.classList.add('hidden');
+            videoContainer.classList.add('hidden');
+            videoPlayer.src = '';
+            videoIframe.src = '';
+        });
+    </script>
+</body>
+</html>
