@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 import pygame
-from src.settings import Settings
+from src.settings import Settings, SNAKE_INIT_LENGTH
 
 class Snake:
     def __init__(self):
@@ -8,8 +8,14 @@ class Snake:
         self.settings = Settings()
 
         # 初始化蛇的位置（屏幕中心）
-        self.body = [(self.settings.screen_width // 2,
-                     self.settings.screen_height // 2)]
+        center_x = self.settings.screen_width // 2
+        center_y = self.settings.screen_height // 2
+        
+        # 根据初始长度创建蛇身
+        self.body = []
+        for i in range(SNAKE_INIT_LENGTH):
+            # 初始向左排列，每段之间间隔一个网格
+            self.body.append((center_x - i * self.settings.grid_size, center_y))
 
         # 初始方向为右
         self.direction = 'RIGHT'
