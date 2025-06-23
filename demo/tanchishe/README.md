@@ -12,6 +12,8 @@
 - 支持暂停功能（按P键）
 - 支持音效和背景音乐（M键控制音乐，S键控制音效）
 - 完整的中文界面支持
+- 最高分记录系统（保存前10名最高分）
+- 稳定的蛇移动控制系统
 
 ## 安装与运行
 
@@ -34,42 +36,116 @@
 - **音效控制**：
   - M键：开启/关闭背景音乐
   - S键：开启/关闭音效
+- **查看最高分**：在主菜单中选择"最高分"查看历史最高分记录。
 
 ## 游戏规则
 
 - 控制蛇吃到食物（红色方块）来增加长度。
 - 避免撞到墙壁或蛇自己的身体。
 - 每吃到一个食物得1分。
+- 游戏结束时，如果得分足够高，将被记录在最高分榜中。
+- 最高分榜保存前10名最高分记录。
+
+## 最近更新
+
+1. 修复了蛇的移动控制系统：
+   - 优化了方向改变逻辑，防止快速按键导致的意外转向
+   - 修正了方向键响应问题
+   
+2. 改进了最高分系统：
+   - 分数记录保存在 `data/high_scores.json` 文件中
+   - 使用JSON格式存储分数记录
+   - 自动保存并更新最高分记录
+   - 显示前10名最高分
 
 ## 项目结构
 
 ```
-snake_game/
-├── assets/              # 游戏资源文件目录
-│   ├── images/         # 图片资源（蛇、食物、背景等）
-│   │   ├── snake.png       # 蛇的图片
-│   │   ├── food.png        # 食物的图片
-│   │   └── background.png  # 背景图片
-│   ├── sounds/         # 音效文件
-│   │   ├── move.wav        # 移动音效
-│   │   ├── eat.wav         # 吃食物音效
-│   │   ├── crash.wav       # 碰撞音效
-│   │   ├── menu_select.wav # 菜单选择音效
-│   │   └── background.wav  # 背景音乐
-│   └── fonts/          # 字体文件
-│       └── WenQuanYiMicroHei.ttf  # 文泉驿微米黑字体
-├── src/                # 源代码目录
-│   ├── main.py        # 游戏入口文件
-│   ├── snake.py       # 蛇类定义
-│   ├── food.py        # 食物类定义
-│   ├── settings.py    # 游戏配置和常量
-│   ├── game_state.py  # 游戏状态管理
-│   ├── ui_manager.py  # UI管理器
-│   └── sound_manager.py # 声音管理器
-└── tests/             # 测试文件目录
-    ├── test_snake.py
-    ├── test_food.py
-    └── test_game_state.py
+tanchishe/
+├── assets/                # 游戏资源文件目录
+│   ├── fonts/            # 字体文件
+│   │   └── WenQuanYiMicroHei.ttf  # 文泉驿微米黑字体
+│   └── sounds/           # 音效文件
+│       ├── move.wav          # 移动音效
+│       ├── eat.wav           # 吃食物音效
+│       ├── crash.wav         # 碰撞音效
+│       ├── menu_select.wav   # 菜单选择音效
+│       └── background.wav    # 背景音乐
+├── data/                 # 数据文件目录
+│   └── high_scores.json  # 最高分记录文件
+├── src/                  # 源代码目录
+│   ├── main.py          # 游戏入口文件
+│   ├── snake.py         # 蛇类定义
+│   ├── food.py          # 食物类定义
+│   ├── settings.py      # 游戏配置和常量
+│   ├── game_state.py    # 游戏状态管理
+│   ├── ui_manager.py    # UI管理器
+│   ├── sound_manager.py # 声音管理器
+│   └── sound_generator.py # 音效生成器
+├── tests/               # 测试文件目录
+│   ├── __init__.py
+│   ├── test_food.py    # 食物类测试
+│   ├── test_snake.py   # 蛇类测试
+│   ├── test_game_state.py # 游戏状态测试
+│   └── test_sound_manager.py # 声音管理器测试
+├── install.sh          # 安装脚本
+├── requirements.txt    # 项目依赖
+└── README.md          # 项目说明文档
+```
+
+## 模块说明
+
+### 核心模块
+1. **游戏主模块 (main.py)**
+   - 游戏主循环
+   - 事件处理
+   - 游戏状态更新
+   - 画面渲染
+
+2. **蛇类 (snake.py)**
+   - 蛇的移动逻辑
+   - 方向控制
+   - 碰撞检测
+   - 生长机制
+
+3. **食物系统 (food.py)**
+   - 食物位置生成
+   - 碰撞检测
+   - 重生机制
+
+4. **游戏状态 (game_state.py)**
+   - 游戏状态管理
+   - 分数系统
+   - 最高分记录
+   - 状态转换逻辑
+
+### 界面和音效
+1. **UI管理器 (ui_manager.py)**
+   - 菜单界面
+   - 游戏界面
+   - 按钮系统
+   - 分数显示
+
+2. **声音系统**
+   - **声音管理器 (sound_manager.py)**
+     * 音效控制
+     * 背景音乐
+     * 音量调节
+   - **音效生成器 (sound_generator.py)**
+     * 动态音效生成
+     * 音效文件保存
+
+### 配置模块
+1. **游戏设置 (settings.py)**
+   - 窗口设置
+   - 游戏参数
+   - 颜色定义
+   - 控制键映射
+
+### 测试模块
+- 单元测试覆盖核心功能
+- 包含食物、蛇、游戏状态和声音系统的测试
+- 使用 pytest 框架
 
 ## 字体说明
 
@@ -79,27 +155,6 @@ snake_game/
 ## 许可证
 
 MIT License
-
-## 项目结构
-
-```
-snake_game/
-├── assets/              # 游戏资源文件目录
-│   ├── images/         # 图片资源（蛇、食物、背景等）
-│   ├── sounds/         # 音效文件
-│   └── fonts/          # 字体文件
-├── src/                # 源代码目录
-│   ├── main.py        # 游戏入口文件
-│   ├── game.py        # 游戏主逻辑
-│   ├── snake.py       # 蛇类定义
-│   ├── food.py        # 食物类定义
-│   ├── settings.py    # 游戏配置和常量
-│   └── utils/         # 工具函数
-│       ├── collision.py   # 碰撞检测
-│       └── score.py      # 分数管理
-├── tests/              # 测试文件目录
-└── requirements.txt    # 项目依赖
-```
 
 ## 技术架构
 
