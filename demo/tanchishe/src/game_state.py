@@ -92,8 +92,9 @@ class GameState:
     def load_high_scores(self):
         """从文件加载最高分记录"""
         try:
-            if os.path.exists('../data/high_scores.json'):
-                with open('../data/high_scores.json', 'r') as f:
+            data_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', 'high_scores.json')
+            if os.path.exists(data_path):
+                with open(data_path, 'r') as f:
                     return json.load(f)
         except Exception as e:
             logger.error(f'加载最高分失败: {e}')
@@ -102,8 +103,10 @@ class GameState:
     def save_high_scores(self):
         """保存最高分记录到文件"""
         try:
-            os.makedirs('../data', exist_ok=True)
-            with open('../data/high_scores.json', 'w') as f:
+            data_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data')
+            os.makedirs(data_dir, exist_ok=True)
+            data_path = os.path.join(data_dir, 'high_scores.json')
+            with open(data_path, 'w') as f:
                 json.dump(self.high_scores, f)
             logger.info('最高分保存成功')
         except Exception as e:
