@@ -10,25 +10,30 @@
 - 显示实时得分
 - 游戏结束后按空格键重新开始
 - 支持暂停功能（按P键）
+- 支持音效和背景音乐（M键控制音乐，S键控制音效）
+- 完整的中文界面支持
 
 ## 安装与运行
 
 1. 确保已安装Python（建议Python 3.11+）
-2. 安装Pygame库：
+2. 安装依赖：
    ```bash
-   pip install pygame
+   pip install -r requirements.txt
    ```
 3. 运行游戏：
    ```bash
-   python snake_game.py
+   python src/main.py
    ```
 
 ## 使用说明
 
-- **开始游戏**：运行程序后游戏自动开始。
+- **开始游戏**：运行程序后在主菜单选择"开始游戏"。
 - **控制蛇**：使用键盘方向键（↑、↓、←、→）控制蛇的移动方向。
 - **暂停/继续**：按P键可以暂停游戏，再按P键继续。
 - **重新开始**：游戏结束后，按空格键重新开始游戏。
+- **音效控制**：
+  - M键：开启/关闭背景音乐
+  - S键：开启/关闭音效
 
 ## 游戏规则
 
@@ -36,16 +41,40 @@
 - 避免撞到墙壁或蛇自己的身体。
 - 每吃到一个食物得1分。
 
-## 计划中的功能
+## 项目结构
 
-- 游戏开始界面（如"按任意键开始"）
-- 难度选择（通过调整蛇的移动速度）
-- 使用精灵图（Sprites）替代方块，提升视觉效果
+```
+snake_game/
+├── assets/              # 游戏资源文件目录
+│   ├── images/         # 图片资源（蛇、食物、背景等）
+│   │   ├── snake.png       # 蛇的图片
+│   │   ├── food.png        # 食物的图片
+│   │   └── background.png  # 背景图片
+│   ├── sounds/         # 音效文件
+│   │   ├── move.wav        # 移动音效
+│   │   ├── eat.wav         # 吃食物音效
+│   │   ├── crash.wav       # 碰撞音效
+│   │   ├── menu_select.wav # 菜单选择音效
+│   │   └── background.wav  # 背景音乐
+│   └── fonts/          # 字体文件
+│       └── WenQuanYiMicroHei.ttf  # 文泉驿微米黑字体
+├── src/                # 源代码目录
+│   ├── main.py        # 游戏入口文件
+│   ├── snake.py       # 蛇类定义
+│   ├── food.py        # 食物类定义
+│   ├── settings.py    # 游戏配置和常量
+│   ├── game_state.py  # 游戏状态管理
+│   ├── ui_manager.py  # UI管理器
+│   └── sound_manager.py # 声音管理器
+└── tests/             # 测试文件目录
+    ├── test_snake.py
+    ├── test_food.py
+    └── test_game_state.py
 
-## 技术栈
+## 字体说明
 
-- Python
-- Pygame
+本游戏使用文泉驿微米黑字体（WenQuanYiMicroHei）作为默认字体，这是一个开源的中文字体。
+字体许可证：GPL-2.0 with Font Exception
 
 ## 许可证
 

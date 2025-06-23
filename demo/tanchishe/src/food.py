@@ -1,32 +1,35 @@
+# -*- coding: utf-8 -*-
 import random
-from settings import GRID_SIZE, WINDOW_WIDTH, WINDOW_HEIGHT
+import pygame
+from src.settings import Settings
 
 
 class Food:
     def __init__(self):
         """初始化食物"""
-        self.position = self.generate_new_position()
+        self.settings = Settings()
+        self.position = self.get_random_position([])
+        self.color = (255, 0, 0)  # 红色
 
-    def generate_new_position(self):
-        """生成新的食物位置"""
-        # 计算网格数量
-        grid_width = WINDOW_WIDTH // GRID_SIZE
-        grid_height = WINDOW_HEIGHT // GRID_SIZE
+    def get_random_position(self, snake_body):
+        """生成一个新的食物位置，确保不与蛇身重叠"""
+        while True:
+            x = random.randrange(0, self.settings.screen_width, self.settings.grid_size)
+            y = random.randrange(0, self.settings.screen_height, self.settings.grid_size)
+            position = (x, y)
+            if position not in snake_body:
+                return position
 
-        # 随机生成位置（确保在网格上对齐）
-        x = random.randint(0, grid_width - 1) * GRID_SIZE
-        y = random.randint(0, grid_height - 1) * GRID_SIZE
-
-        return (x, y)
-
-    def check_collision(self, snake_head):
-        """检查是否被蛇吃到"""
-        return self.position == snake_head
+    def draw(self, screen):
+        """绘制食物"""
+        pygame.draw.rect(screen, self.color, 
+                        (self.position[0], self.position[1], 
+                         self.settings.grid_size, self.settings.grid_size))
 
     def respawn(self, snake_body):
-        """重新生成食物，确保不会出现在蛇身上"""
-        while True:
-            new_position = self.generate_new_position()
-            if new_position not in snake_body:
-                self.position = new_position
-                break
+        """重新生成食物位置"""
+        self.position = self.get_random_position(snake_body)
+
+    def check_collision(self, snake_head):
+        """检查是否与蛇头碰撞"""
+        return self.position == snake_head
