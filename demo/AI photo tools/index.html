@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 图片生成工具</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="app-container">
+        <header>
+            <h1>AI 图片生成助手</h1>
+            <div class="header-actions">
+                <div id="api-status" class="api-status" title="API状态">
+                    <span class="status-indicator"></span>
+                    <span class="status-text">API未测试</span>
+                </div>
+                <button id="history-btn" class="icon-btn" title="历史记录">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 8v4l3 3"></path>
+                        <circle cx="12" cy="12" r="10"></circle>
+                    </svg>
+                </button>
+            </div>
+        </header>
+
+        <main>
+            <!-- 左侧输入区 -->
+            <div class="input-panel">
+                <textarea id="prompt-input" placeholder="描述你想要的画面...&#10;&#10;例如：一只穿着宇航服的柴犬，太空背景，卡通风格"></textarea>
+                
+                <div class="controls">
+                    <div class="select-wrapper">
+                        <label for="size-select">尺寸</label>
+                        <select id="size-select">
+                            <option value="512x512">512×512</option>
+                            <option value="1024x1024">1024×1024</option>
+                        </select>
+                    </div>
+                    
+                    <div class="select-wrapper">
+                        <label for="style-select">风格</label>
+                        <select id="style-select">
+                            <option value="realistic">写实风格</option>
+                            <option value="anime">动漫风格</option>
+                            <option value="watercolor">水彩风格</option>
+                            <option value="3d">3D渲染</option>
+                        </select>
+                    </div>
+                    
+                    <button id="generate-btn" class="primary-btn">
+                        <span>生成图片</span>
+                        <div class="spinner"></div>
+                    </button>
+                </div>
+
+                <div class="advanced-options">
+                    <details>
+                        <summary>高级选项</summary>
+                        <div class="advanced-controls">
+                            <div class="checkbox-wrapper">
+                                <input type="checkbox" id="use-cors-proxy" checked>
+                                <label for="use-cors-proxy">使用CORS代理</label>
+                                <div class="tooltip">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                        <circle cx="12" cy="12" r="10"></circle>
+                                        <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+                                        <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                    </svg>
+                                    <span class="tooltip-text">使用CORS代理可以解决浏览器跨域问题，但可能会增加请求时间</span>
+                                </div>
+                            </div>
+                            <div class="range-wrapper">
+                                <label for="steps-range">生成步数: <span id="steps-value">20</span></label>
+                                <input type="range" id="steps-range" min="10" max="50" value="20">
+                            </div>
+                            <div class="range-wrapper">
+                                <label for="guidance-range">引导强度: <span id="guidance-value">7.5</span></label>
+                                <input type="range" id="guidance-range" min="1" max="20" step="0.5" value="7.5">
+                            </div>
+                        </div>
+                    </details>
+                </div>
+            </div>
+            
+            <!-- 右侧展示区 -->
+            <div class="gallery" id="gallery">
+                <!-- 图片将在这里动态生成 -->
+                <div class="placeholder-text">你的AI创作将在这里展示</div>
+            </div>
+        </main>
+
+        <!-- 历史记录面板 -->
+        <div class="history-panel" id="history-panel">
+            <div class="history-header">
+                <h2>历史记录</h2>
+                <button id="close-history" class="icon-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+            </div>
+            <div class="history-list" id="history-list">
+                <!-- 历史记录将在这里动态生成 -->
+                <div class="empty-history">暂无历史记录</div>
+            </div>
+        </div>
+
+        <!-- 图片预览模态框 -->
+        <div class="modal" id="preview-modal">
+            <div class="modal-content">
+                <button id="close-modal" class="icon-btn">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="6" x2="6" y2="18"></line>
+                        <line x1="6" y1="6" x2="18" y2="18"></line>
+                    </svg>
+                </button>
+                <img id="preview-image" src="" alt="预览图片">
+                <div class="modal-actions">
+                    <button id="download-btn" class="action-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                            <polyline points="7 10 12 15 17 10"></polyline>
+                            <line x1="12" y1="15" x2="12" y2="3"></line>
+                        </svg>
+                        下载
+                    </button>
+                    <button id="share-btn" class="action-btn">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="18" cy="5" r="3"></circle>
+                            <circle cx="6" cy="12" r="3"></circle>
+                            <circle cx="18" cy="19" r="3"></circle>
+                            <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line>
+                            <line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line>
+                        </svg>
+                        分享
+                    </button>
+                </div>
+                <div class="image-details">
+                    <div class="prompt-display" id="preview-prompt"></div>
+                    <div class="settings-display" id="preview-settings"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 图片保存说明 -->
+    <div class="tooltip-overlay" id="save-info-overlay">
+        <div class="tooltip-content">
+            <h3>关于图片保存</h3>
+            <p>1. 图片生成后直接显示在画廊中</p>
+            <p>2. 图片URL和提示词会自动保存在浏览器的本地存储中</p>
+            <p>3. 点击图片后，可以使用"下载"按钮将图片保存到您的设备上</p>
+            <p>4. 下载的图片将保存在您的默认下载文件夹中</p>
+            <p>5. 您可以随时在"历史记录"中查看并下载之前生成的图片</p>
+            <button id="close-save-info" class="action-btn">我知道了</button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
