@@ -1,66 +1,81 @@
----
+# AI 图片生成工具
 
-### **Cursor 提示词（Web UI设计师优化版）**  
+## 目录
+- [项目概述](#项目概述)
+- [核心功能](#核心功能)
+- [UI/UX设计规范](#uiux设计规范)
+- [项目实现](#项目实现)
+  - [技术架构](#1-技术架构)
+  - [核心功能](#2-核心功能)
+  - [文件结构](#3-文件结构)
+  - [API 集成](#4-api-集成)
+- [如何使用](#5-如何使用)
+- [部署说明](#6-部署说明)
+- [配置说明](#7-配置说明)
+- [故障排除](#8-故障排除)
+- [未来改进方向](#9-未来改进方向)
+- [技术支持](#技术支持)
+- [最新更新说明](#最新更新说明)
+- [许可证](#许可证)
+
+## 项目概述
+
 **目标**：开发一个美观、交互流畅的「AI对话生成图片」网页应用，支持用户输入文本描述并实时生成图片，需兼顾功能性与视觉体验。
 
----
+## 核心功能
 
-#### **核心功能需求**  
-1. **用户输入界面**  
-   - 提供优雅的**多行文本输入框**，支持提示词输入（如："一只穿着宇航服的柴犬，太空背景，卡通风格"）。  
-   - 添加**参数调节组件**（可选）：  
-     - 图片尺寸下拉菜单（512×512, 1024×1024）。  
-     - 风格选择（写实/动漫/水彩等）。  
-   - 提交按钮设计为**动态加载状态**（点击后显示旋转图标）。  
+### 1. 用户输入界面  
+- 提供优雅的**多行文本输入框**，支持提示词输入（如："一只穿着宇航服的柴犬，太空背景，卡通风格"）。  
+- 添加**参数调节组件**（可选）：  
+  - 图片尺寸下拉菜单（512×512, 1024×1024）。  
+  - 风格选择（写实/动漫/水彩等）。  
+- 提交按钮设计为**动态加载状态**（点击后显示旋转图标）。  
 
-2. **AI图片生成与展示**  
-   - 调用AI图片生成API（如OpenAI DALL·E、Stable Diffusion等）。  
-   - 图片加载时显示**占位骨架屏**（Skeleton Loading），提升等待体验。  
-   - 生成后的图片以**卡片瀑布流**布局展示，支持点击放大预览。  
+### 2. AI图片生成与展示  
+- 调用AI图片生成API（如OpenAI DALL·E、Stable Diffusion等）。  
+- 图片加载时显示**占位骨架屏**（Skeleton Loading），提升等待体验。  
+- 生成后的图片以**卡片瀑布流**布局展示，支持点击放大预览。  
 
-3. **历史记录与交互**  
-   - 本地存储用户生成记录（LocalStorage），支持查看历史作品。  
-   - 每张图片提供**下载按钮**（PNG/JPEG）和**分享链接**。  
+### 3. 历史记录与交互  
+- 本地存储用户生成记录（LocalStorage），支持查看历史作品。  
+- 每张图片提供**下载按钮**（PNG/JPEG）和**分享链接**。  
 
----
+## UI/UX设计规范  
 
-#### **UI/UX设计规范**  
-1. **视觉风格**  
-   - **配色方案**：深色模式为主（降低长时间使用疲劳），搭配AI科技感渐变色（如`#6e48aa`到`#9f50ac`）。  
-   - **字体选择**：  
-     - 标题：`"Inter"`（现代无衬线，加粗）。  
-     - 正文：`"Roboto"`（易读性强）。  
-   - **圆角与阴影**：卡片圆角`12px`，柔和阴影（`box-shadow: 0 4px 12px rgba(0,0,0,0.1)`）。  
+### 1. 视觉风格  
+- **配色方案**：深色模式为主（降低长时间使用疲劳），搭配AI科技感渐变色（如`#6e48aa`到`#9f50ac`）。  
+- **字体选择**：  
+  - 标题：`"Inter"`（现代无衬线，加粗）。  
+  - 正文：`"Roboto"`（易读性强）。  
+- **圆角与阴影**：卡片圆角`12px`，柔和阴影（`box-shadow: 0 4px 12px rgba(0,0,0,0.1)`）。  
 
-2. **布局结构**  
-   ```html
-   <div class="app-container">
-     <!-- 左侧输入区 -->
-     <div class="input-panel">
-       <textarea placeholder="描述你想要的画面..."></textarea>
-       <div class="controls">
-         <select><option>512×512</option></select>
-         <button>生成</button>
-       </div>
-     </div>
-     
-     <!-- 右侧展示区 -->
-     <div class="gallery">
-       <div class="image-card loading"></div> <!-- 骨架屏 -->
-       <div class="image-card">
-         <img src="ai-generated-image.png">
-         <button class="download-btn">↓ 下载</button>
-       </div>
-     </div>
-   </div>
-   ```
+### 2. 布局结构  
+```html
+<div class="app-container">
+  <!-- 左侧输入区 -->
+  <div class="input-panel">
+    <textarea placeholder="描述你想要的画面..."></textarea>
+    <div class="controls">
+      <select><option>512×512</option></select>
+      <button>生成</button>
+    </div>
+  </div>
+  
+  <!-- 右侧展示区 -->
+  <div class="gallery">
+    <div class="image-card loading"></div> <!-- 骨架屏 -->
+    <div class="image-card">
+      <img src="ai-generated-image.png">
+      <button class="download-btn">↓ 下载</button>
+    </div>
+  </div>
+</div>
+```
 
-3. **交互动效**  
-   - 输入框聚焦时边框渐变色流动效果（CSS `:focus-within`）。  
-   - 图片生成后淡入入场（`@keyframes fadeIn`）。  
-   - 按钮微交互（悬停时轻微放大，点击下沉效果）。  
-
----
+### 3. 交互动效  
+- 输入框聚焦时边框渐变色流动效果（CSS `:focus-within`）。  
+- 图片生成后淡入入场（`@keyframes fadeIn`）。  
+- 按钮微交互（悬停时轻微放大，点击下沉效果）。  
 
 ## 项目实现
 
@@ -140,11 +155,23 @@ Worker提供的主要API端点：
 直接将所有前端文件上传到任何静态网站托管服务即可使用。
 
 #### Cloudflare Worker部署
-1. 安装Cloudflare Wrangler CLI：`npm install -g wrangler`
-2. 登录到Cloudflare账户：`wrangler login`
-3. 创建R2存储桶：`wrangler r2 bucket create ai-generated-images`
+1. 安装Cloudflare Wrangler CLI：
+   ```bash
+   npm install -g wrangler
+   ```
+2. 登录到Cloudflare账户：
+   ```bash
+   wrangler login
+   ```
+3. 创建R2存储桶：
+   ```bash
+   wrangler r2 bucket create ai-generated-images
+   ```
 4. 更新`wrangler.toml`中的配置
-5. 部署Worker：`wrangler publish`
+5. 部署Worker：
+   ```bash
+   wrangler publish
+   ```
 
 ### 7. 配置说明
 
@@ -173,23 +200,19 @@ Worker提供的主要API端点：
 4. 增加提示词助手功能
 5. 优化移动端体验和性能
 
----
-
 ## 技术支持
 
 如有任何问题或建议，请提交Issue或联系项目维护者。
 
----
+更多API详情，请参考[API文档](./API.md)。
 
 ## 许可证
 
 MIT License
 
----
+## 最新更新说明
 
-## 最新更新说明（2025-06-24）
-
-### 问题修复
+### 问题修复 (2023-06-24)
 
 我们发现了一个关键问题：之前使用的"silkroad"模型现在已不可用，导致图片生成失败，错误提示为"Model does not exist"。
 

@@ -142,14 +142,21 @@ function setupEventListeners() {
 async function testApiConnection() {
     updateApiStatus('loading', 'API测试中...');
     
+    // 添加超时控制
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
+    
     try {
         // 使用Worker代理检查API连接
         const response = await fetch(`${WORKER_URL}/api/test-connection`, {
             method: 'GET',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            signal: controller.signal
         });
+        
+        clearTimeout(timeoutId); // 清除超时
         
         const result = await response.json();
         
@@ -163,9 +170,17 @@ async function testApiConnection() {
             generateBtn.disabled = true;
         }
     } catch (error) {
-        console.error('API连接测试失败:', error);
-        apiAvailable = false;
-        updateApiStatus('error', 'API连接失败 ❌');
+        clearTimeout(timeoutId); // 清除超时
+        
+        if (error.name === 'AbortError') {
+            console.error('API连接测试超时');
+            apiAvailable = false;
+            updateApiStatus('error', 'API连接超时 ❌');
+        } else {
+            console.error('API连接测试失败:', error);
+            apiAvailable = false;
+            updateApiStatus('error', 'API连接失败 ❌');
+        }
         generateBtn.disabled = true;
     }
 }
@@ -211,7 +226,7 @@ async function handleGenerate() {
         // 准备请求数据
         const requestData = {
             prompt: prompt,
-            model: "Kwai-Kolors/Kolors",
+            model: window.SETTINGS.api.defaultModel || "Kwai-Kolors/Kolors",
             image_size: size
         };
         
@@ -304,7 +319,7 @@ async function handleGenerate() {
         
         // 移除骨架屏
         if (gallery.contains(loadingCard)) {
-        gallery.removeChild(loadingCard);
+            gallery.removeChild(loadingCard);
         }
         
         // 调试信息
@@ -320,7 +335,7 @@ async function handleGenerate() {
         } else if (error.message.includes('parse') || error.message.includes('JSON')) {
             showNotification(`响应解析失败: ${error.message}. 服务器返回了无效数据`, 'error');
         } else {
-        showNotification(`生成失败: ${error.message}`, 'error');
+            showNotification(`生成失败: ${error.message}`, 'error');
         }
         
         // 尝试重新测试API连接
@@ -577,7 +592,10 @@ function updateHistoryPanel() {
     });
     
     // 更新历史记录数量
-    document.getElementById('history-count').textContent = generatedImages.length;
+    const historyCountElement = document.getElementById('history-count');
+    if (historyCountElement) {
+        historyCountElement.textContent = generatedImages.length;
+    }
 }
 
 // 从本地存储加载历史记录
@@ -719,14 +737,14 @@ async function debugApiConnection() {
             try {
                 const testGenRequest = {
                     prompt: "测试图片请求",
-                    model: "Kwai-Kolors/Kolors",
+                    model: window.SETTINGS.api.defaultModel || "Kwai-Kolors/Kolors",
                     image_size: "256x256"
                 };
                 
                 const testGenResponse = await fetch(`${WORKER_URL}/api/generate-image`, {
                     method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
+                    headers: {
+                        'Content-Type': 'application/json'
                     },
                     body: JSON.stringify(testGenRequest)
                 });
@@ -745,10 +763,10 @@ async function debugApiConnection() {
             }
             
             console.log('===== 快速API测试完成 =====');
-        
-        // 显示调试信息
+            
+            // 显示调试信息
             showNotification('快速API测试完成，请查看控制台', 'info');
-    } catch (error) {
+        } catch (error) {
             console.error('快速API测试失败:', error);
             showNotification(`API测试错误: ${error.message}`, 'error');
         }
