@@ -3,8 +3,22 @@
  * 此脚本用于测试Cloudflare Worker API代理连接是否正常工作
  */
 
-// Worker URL - 替换为您的实际Worker URL
-const WORKER_URL = "https://ai-image-storage.sharanlillickclz66.workers.dev";
+// 创建一个简化版的 AppConfig 以供测试页面使用
+if (typeof window.AppConfig === 'undefined') {
+  window.AppConfig = {
+    get: function(path, defaultValue) {
+      // 默认配置值
+      const defaults = {
+        'worker.url': "https://ai-image-storage.sharanlillickclz66.workers.dev"
+      };
+      
+      return path.split('.').reduce((o, i) => o ? o[i] : undefined, defaults) || defaultValue;
+    }
+  };
+}
+
+// Worker URL - 从配置获取
+const WORKER_URL = window.AppConfig.get('worker.url', "https://ai-image-storage.sharanlillickclz66.workers.dev");
 
 // 测试端点
 const TEST_ENDPOINTS = [
@@ -168,7 +182,7 @@ async function runTests() {
   if (failures > 0) {
     console.log(`\n${colors.red}有${failures}个测试失败，请检查以上错误信息并排除问题。${colors.reset}`);
     console.log(`常见问题排查建议:`);
-    console.log(`1. 确认Worker URL是否正确`);
+    console.log(`1. 确认Worker URL是否正确（${WORKER_URL}）`);
     console.log(`2. 检查Worker是否已正确部署`);
     console.log(`3. 确认R2存储桶是否已创建并配置`);
     console.log(`4. 查看Cloudflare Worker日志以获取更多信息`);

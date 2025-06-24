@@ -1,9 +1,12 @@
-// 确保SETTINGS对象存在
-if (typeof window.SETTINGS === 'undefined') {
-    console.error('SETTINGS object not found. Initializing with default values.');
-    window.SETTINGS = {
-        worker: { url: "https://ai-image-storage.sharanlillickclz66.workers.dev" },
-        corsProxy: { url: "https://corsproxy.io/?" }
+// 确保配置系统已初始化
+if (typeof window.AppConfig === 'undefined') {
+    console.error('AppConfig 对象未找到。使用默认配置初始化。');
+    // 创建一个基础的 AppConfig 对象以避免错误
+    window.AppConfig = {
+        get: (path, defaultValue) => defaultValue,
+        set: () => false,
+        getAll: () => ({}),
+        validate: () => false
     };
 }
 
@@ -40,9 +43,13 @@ let generatedImages = [];
 let currentImageIndex = null;
 let apiAvailable = null; // null = 未测试, true = 可用, false = 不可用
 
-// 从设置中获取CORS代理URL和Worker URL
-const CORS_PROXY_URL = window.SETTINGS.corsProxy.url;
-const WORKER_URL = window.SETTINGS.worker.url;
+// 从配置中获取常用值
+const CORS_PROXY_URL = AppConfig.get('corsProxy.url');
+const WORKER_URL = AppConfig.get('worker.url');
+const DEFAULT_MODEL = AppConfig.get('api.defaultModel');
+const HISTORY_STORAGE_KEY = AppConfig.get('storage.historyKey');
+const MAX_HISTORY_ITEMS = AppConfig.get('storage.maxHistoryItems');
+const NOTIFICATION_DURATION = AppConfig.get('ui.notificationDuration');
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -191,6 +198,25 @@ function updateApiStatus(status, text) {
     apiStatus.querySelector('.status-text').textContent = text;
 }
 
+// 获取样式提示词
+function getStylePrompt(style, originalPrompt) {
+    // 不同风格对应的提示词增强
+    const stylePrompts = {
+        'realistic': `highly detailed, ultra realistic photograph of ${originalPrompt}, 8k, professional photography, sharp focus`,
+        'anime': `anime style, ${originalPrompt}, vibrant colors, studio ghibli, hayao miyazaki style`,
+        'watercolor': `watercolor painting of ${originalPrompt}, soft colors, flowing, artistic, hand-painted`,
+        '3d': `3D rendering of ${originalPrompt}, octane render, detailed textures, soft lighting, ray tracing`,
+        '3d-render': `3D rendering of ${originalPrompt}, octane render, detailed textures, soft lighting, ray tracing`
+    };
+    
+    // 如果有对应的风格增强提示词，使用它，否则简单添加风格描述
+    if (stylePrompts[style]) {
+        return stylePrompts[style];
+    } else {
+        return `${originalPrompt}, ${style} style`;
+    }
+}
+
 // 处理生成图片
 async function handleGenerate() {
     console.log('生成按钮被点击');
@@ -223,15 +249,18 @@ async function handleGenerate() {
     gallery.insertBefore(loadingCard, gallery.firstChild);
     
     try {
-        // 准备请求数据
+        // 准备请求数据 - 修改后的逻辑
         const requestData = {
             prompt: prompt,
-            model: window.SETTINGS.api.defaultModel || "Kwai-Kolors/Kolors",
+            model: DEFAULT_MODEL, // 始终使用有效的默认模型
             image_size: size
         };
         
+        // 如果选择了非默认风格，将风格添加到提示词中
         if (style && style !== 'default') {
-            requestData.style = style;
+            // 根据风格修改提示词
+            const stylePrompt = getStylePrompt(style, prompt);
+            requestData.prompt = stylePrompt;
         }
         
         // 添加高级参数
@@ -299,7 +328,7 @@ async function handleGenerate() {
         // 使用永久URL创建图片卡片
         const imageData = {
             url: imageUrl,
-            prompt: prompt,
+            prompt: requestData.prompt, // 使用实际发送的提示词（可能包含风格信息）
             size: size,
             style: style || 'default',
             timestamp: new Date().toISOString(),
@@ -552,12 +581,12 @@ function saveToHistory(imageData) {
     generatedImages.unshift(imageData);
     
     // 限制历史记录数量
-    if (generatedImages.length > 50) {
-        generatedImages = generatedImages.slice(0, 50);
+    if (generatedImages.length > MAX_HISTORY_ITEMS) {
+        generatedImages = generatedImages.slice(0, MAX_HISTORY_ITEMS);
     }
     
     // 保存到localStorage
-    localStorage.setItem('aiGeneratedImages', JSON.stringify(generatedImages));
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(generatedImages));
     
     // 更新历史面板
     updateHistoryPanel();
@@ -600,7 +629,7 @@ function updateHistoryPanel() {
 
 // 从本地存储加载历史记录
 function loadFromLocalStorage() {
-    const savedHistory = localStorage.getItem('aiGeneratedImages');
+    const savedHistory = localStorage.getItem(HISTORY_STORAGE_KEY);
     
     if (savedHistory) {
         generatedImages = JSON.parse(savedHistory);
@@ -681,8 +710,8 @@ function showNotification(message, type = 'info') {
     // 自动消失
     setTimeout(() => {
         notification.classList.remove('visible');
-        setTimeout(() => notification.remove(), 300);
-    }, 4000);
+        setTimeout(() => notification.remove(), NOTIFICATION_DURATION);
+    }, NOTIFICATION_DURATION);
 }
 
 // 获取通知图标
@@ -707,7 +736,7 @@ async function debugApiConnection() {
         }
     } else {
         console.log('===== 快速API测试开始 =====');
-        console.log('SETTINGS对象:', window.SETTINGS);
+        console.log('配置对象:', AppConfig.getAll());
         console.log('Worker URL:', WORKER_URL);
         
         try {
@@ -737,7 +766,7 @@ async function debugApiConnection() {
             try {
                 const testGenRequest = {
                     prompt: "测试图片请求",
-                    model: window.SETTINGS.api.defaultModel || "Kwai-Kolors/Kolors",
+                    model: DEFAULT_MODEL,
                     image_size: "256x256"
                 };
                 

@@ -10,7 +10,7 @@ bucket_name = "ai-generated-images"
 # 环境变量配置
 [vars]
 # 设置为Worker自身的URL，确保可以访问存储的图片
-R2_PUBLIC_DOMAIN = "ai-image-storage.sharanlillickclz66.workers.dev"
+R2_PUBLIC_DOMAIN = "ai-images.nxlan.cn"
 SILICON_FLOW_API_KEY = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy"  # 默认API密钥，部署时替换为实际密钥
 
 # 开发环境配置

@@ -136,6 +136,8 @@
             to { transform: rotate(360deg); }
         }
     </style>
+    <!-- 引入配置系统 -->
+    <script src="settings.js"></script>
 </head>
 <body>
     <h1>API 连接测试工具</h1>
@@ -143,8 +145,9 @@
     
     <div class="custom-url-section">
         <h2>Worker URL 配置</h2>
-        <input type="text" id="worker-url" placeholder="输入Worker URL" value="https://ai-image-storage.sharanlillickclz66.workers.dev">
+        <input type="text" id="worker-url" placeholder="输入Worker URL">
         <button id="update-url">更新 URL</button>
+        <button id="save-url">保存到配置</button>
     </div>
     
     <button id="run-all-tests">运行所有测试</button>
@@ -160,8 +163,23 @@
     </div>
     
     <script>
-        // 初始化 Worker URL
-        let WORKER_URL = "https://ai-image-storage.sharanlillickclz66.workers.dev";
+        // 确保配置系统已初始化
+        if (typeof window.AppConfig === 'undefined') {
+            console.error('AppConfig 对象未找到。使用默认配置初始化。');
+            // 创建一个基础的 AppConfig 对象以避免错误
+            window.AppConfig = {
+                get: (path, defaultValue) => defaultValue,
+                set: () => false,
+                getAll: () => ({}),
+                validate: () => false
+            };
+        }
+        
+        // 初始化 Worker URL，从配置获取
+        let WORKER_URL = AppConfig.get('worker.url', "https://ai-image-storage.sharanlillickclz66.workers.dev");
+        
+        // 设置表单默认值
+        document.getElementById('worker-url').value = WORKER_URL;
         
         // 测试端点配置
         let TEST_ENDPOINTS = [];
@@ -190,6 +208,13 @@
                     method: "GET",
                     expectError: true,
                     description: "测试图片获取功能（此测试预期可能失败，因为测试图片可能不存在）"
+                },
+                {
+                    id: "models-test",
+                    name: "可用模型测试",
+                    url: `${WORKER_URL}/api/test-connection`,
+                    method: "GET",
+                    description: "测试可用的AI模型列表"
                 },
                 {
                     id: "custom-test",
@@ -397,6 +422,27 @@
             runAllBtn.textContent = '运行所有测试';
         }
         
+        // 更新Worker URL
+        function updateWorkerUrl() {
+            const input = document.getElementById('worker-url');
+            WORKER_URL = input.value.trim();
+            updateEndpoints();
+            clearResults();
+        }
+        
+        // 保存Worker URL到配置
+        function saveWorkerUrlToConfig() {
+            const input = document.getElementById('worker-url');
+            const url = input.value.trim();
+            
+            if (typeof window.AppConfig !== 'undefined' && typeof window.AppConfig.set === 'function') {
+                window.AppConfig.set('worker.url', url);
+                alert(`Worker URL "${url}" 已保存到配置！将在页面刷新后生效。`);
+            } else {
+                alert('配置系统不可用，无法保存URL。请检查settings.js是否正确加载。');
+            }
+        }
+        
         // 更新测试摘要
         function updateSummary(successes, failures) {
             const summaryDiv = document.getElementById('summary');
@@ -407,6 +453,7 @@
                 <p>总测试: ${total}</p>
                 <p>成功: <span style="color: #4caf50; font-weight: bold;">${successes}</span></p>
                 <p>失败: <span style="color: #f44336; font-weight: bold;">${failures}</span></p>
+                <p>当前Worker URL: <code>${WORKER_URL}</code></p>
             `;
             
             if (failures > 0) {
@@ -415,7 +462,7 @@
                         <p style="color: #f44336; font-weight: bold;">有${failures}个测试失败，请检查以上错误信息并排除问题。</p>
                         <p>常见问题排查建议:</p>
                         <ul>
-                            <li>确认Worker URL是否正确</li>
+                            <li>确认Worker URL是否正确: ${WORKER_URL}</li>
                             <li>检查Worker是否已正确部署</li>
                             <li>确认R2存储桶是否已创建并配置</li>
                             <li>查看Cloudflare Worker日志以获取更多信息</li>
@@ -442,15 +489,8 @@
             document.getElementById('summary').innerHTML = `
                 <h2>测试摘要</h2>
                 <p>点击"运行所有测试"按钮开始测试</p>
+                <p>当前Worker URL: <code>${WORKER_URL}</code></p>
             `;
-        }
-        
-        // 更新Worker URL
-        function updateWorkerUrl() {
-            const input = document.getElementById('worker-url');
-            WORKER_URL = input.value.trim();
-            updateEndpoints();
-            clearResults();
         }
         
         // 初始化
@@ -462,6 +502,7 @@
             document.getElementById('run-all-tests').addEventListener('click', runAllTests);
             document.getElementById('clear-results').addEventListener('click', clearResults);
             document.getElementById('update-url').addEventListener('click', updateWorkerUrl);
+            document.getElementById('save-url').addEventListener('click', saveWorkerUrlToConfig);
             
             // 绑定Worker URL输入框回车事件
             document.getElementById('worker-url').addEventListener('keypress', (e) => {
@@ -469,6 +510,9 @@
                     updateWorkerUrl();
                 }
             });
+            
+            // 初始化显示当前Worker URL
+            clearResults();
         });
     </script>
 </body>
