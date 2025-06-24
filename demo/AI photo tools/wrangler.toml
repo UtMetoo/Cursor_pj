@@ -1,0 +1,25 @@
+name = "ai-image-storage"
+main = "r2-worker.js"
+compatibility_date = "2023-09-11"
+
+# 配置R2绑定
+[[r2_buckets]]
+binding = "AI_IMAGES"
+bucket_name = "ai-generated-images"
+
+# 环境变量配置
+[vars]
+# 设置为Worker自身的URL，确保可以访问存储的图片
+R2_PUBLIC_DOMAIN = "ai-image-storage.sharanlillickclz66.workers.dev"
+SILICON_FLOW_API_KEY = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy"  # 默认API密钥，部署时替换为实际密钥
+
+# 开发环境配置
+[env.dev]
+workers_dev = true
+# 可以添加测试环境专用的变量
+
+# 生产环境配置
+[env.production]
+workers_dev = false
+# 生产环境专用的变量和设置
+route = "ai-images.nxlan.cn/image-upload"

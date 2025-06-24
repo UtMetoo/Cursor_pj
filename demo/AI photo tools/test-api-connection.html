@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>API 连接测试工具</title>
+    <style>
+        body {
+            font-family: 'Inter', 'Roboto', sans-serif;
+            background-color: #1a1a2e;
+            color: #e6e6e6;
+            line-height: 1.6;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #e2e2e2;
+            border-bottom: 1px solid #3a3a5c;
+            padding-bottom: 10px;
+        }
+        button {
+            background: linear-gradient(135deg, #6e48aa 0%, #9f50ac 100%);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
+            margin: 10px 0;
+            transition: all 0.3s ease;
+        }
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(110, 72, 170, 0.3);
+        }
+        button:disabled {
+            background: #555;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .endpoint {
+            margin: 15px 0;
+            padding: 15px;
+            background: #272741;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+        .endpoint-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .endpoint-name {
+            font-weight: bold;
+            font-size: 18px;
+        }
+        .endpoint-url {
+            color: #9f50ac;
+            word-break: break-all;
+        }
+        .result {
+            margin-top: 15px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 5px;
+            border-left: 4px solid transparent;
+        }
+        .success {
+            border-color: #4caf50;
+        }
+        .failure {
+            border-color: #f44336;
+        }
+        .pending {
+            border-color: #2196f3;
+        }
+        .response-data {
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 14px;
+            padding: 10px;
+            background: #0f0f23;
+            border-radius: 5px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .status {
+            font-weight: bold;
+        }
+        .status.success {
+            color: #4caf50;
+        }
+        .status.failure {
+            color: #f44336;
+        }
+        .status.pending {
+            color: #2196f3;
+        }
+        .summary {
+            margin-top: 20px;
+            padding: 15px;
+            background: #272741;
+            border-radius: 8px;
+        }
+        .custom-url-section {
+            margin: 20px 0;
+            padding: 15px;
+            background: #272741;
+            border-radius: 8px;
+        }
+        input[type="text"] {
+            width: 100%;
+            padding: 10px;
+            margin: 8px 0;
+            background: #1a1a2e;
+            border: 1px solid #3a3a5c;
+            border-radius: 5px;
+            color: #e6e6e6;
+            font-size: 16px;
+        }
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+            margin-left: 10px;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>API 连接测试工具</h1>
+    <p>此工具用于测试Cloudflare Worker API代理连接是否正常工作</p>
+    
+    <div class="custom-url-section">
+        <h2>Worker URL 配置</h2>
+        <input type="text" id="worker-url" placeholder="输入Worker URL" value="https://ai-image-storage.sharanlillickclz66.workers.dev">
+        <button id="update-url">更新 URL</button>
+    </div>
+    
+    <button id="run-all-tests">运行所有测试</button>
+    <button id="clear-results">清除结果</button>
+    
+    <div id="endpoints-container">
+        <!-- 测试端点将在这里动态生成 -->
+    </div>
+    
+    <div class="summary" id="summary">
+        <h2>测试摘要</h2>
+        <p>点击"运行所有测试"按钮开始测试</p>
+    </div>
+    
+    <script>
+        // 初始化 Worker URL
+        let WORKER_URL = "https://ai-image-storage.sharanlillickclz66.workers.dev";
+        
+        // 测试端点配置
+        let TEST_ENDPOINTS = [];
+        
+        // 更新测试端点
+        function updateEndpoints() {
+            TEST_ENDPOINTS = [
+                {
+                    id: "test-connection",
+                    name: "API连接测试",
+                    url: `${WORKER_URL}/api/test-connection`,
+                    method: "GET",
+                    description: "测试与硅基流动API的连接状态"
+                },
+                {
+                    id: "worker-info",
+                    name: "Worker根路径",
+                    url: WORKER_URL,
+                    method: "GET",
+                    description: "获取Worker基本信息和可用端点"
+                },
+                {
+                    id: "image-test",
+                    name: "图片获取测试",
+                    url: `${WORKER_URL}/image/test-image.png`,
+                    method: "GET",
+                    expectError: true,
+                    description: "测试图片获取功能（此测试预期可能失败，因为测试图片可能不存在）"
+                },
+                {
+                    id: "custom-test",
+                    name: "自定义测试",
+                    url: `${WORKER_URL}/api/test-connection`,
+                    method: "GET",
+                    isCustom: true,
+                    description: "您可以自定义端点URL进行测试"
+                }
+            ];
+            
+            renderEndpoints();
+        }
+        
+        // 渲染测试端点
+        function renderEndpoints() {
+            const container = document.getElementById('endpoints-container');
+            container.innerHTML = '';
+            
+            TEST_ENDPOINTS.forEach(endpoint => {
+                const endpointDiv = document.createElement('div');
+                endpointDiv.className = 'endpoint';
+                endpointDiv.id = `endpoint-${endpoint.id}`;
+                
+                let urlInput = '';
+                if (endpoint.isCustom) {
+                    urlInput = `
+                        <div style="margin: 10px 0;">
+                            <input type="text" class="custom-endpoint-url" value="${endpoint.url}" placeholder="输入端点URL">
+                        </div>
+                    `;
+                }
+                
+                endpointDiv.innerHTML = `
+                    <div class="endpoint-header">
+                        <span class="endpoint-name">${endpoint.name}</span>
+                        <button class="test-btn" data-id="${endpoint.id}">测试</button>
+                    </div>
+                    <div class="endpoint-url">${endpoint.url}</div>
+                    <div class="endpoint-description">${endpoint.description}</div>
+                    ${urlInput}
+                    <div class="result pending" id="result-${endpoint.id}" style="display: none;">
+                        <div class="status pending">等待测试...</div>
+                        <div class="response-time"></div>
+                        <div class="response-data-container" style="display: none;">
+                            <h4>响应数据:</h4>
+                            <div class="response-data"></div>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(endpointDiv);
+            });
+            
+            // 绑定测试按钮事件
+            document.querySelectorAll('.test-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const id = btn.getAttribute('data-id');
+                    let endpoint = TEST_ENDPOINTS.find(ep => ep.id === id);
+                    
+                    // 如果是自定义端点，更新URL
+                    if (endpoint.isCustom) {
+                        const customUrl = document.querySelector(`#endpoint-${id} .custom-endpoint-url`).value;
+                        endpoint = { ...endpoint, url: customUrl };
+                    }
+                    
+                    await testEndpoint(endpoint);
+                });
+            });
+            
+            // 绑定自定义URL输入事件
+            document.querySelectorAll('.custom-endpoint-url').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const id = e.target.closest('.endpoint').id.replace('endpoint-', '');
+                    const endpoint = TEST_ENDPOINTS.find(ep => ep.id === id);
+                    if (endpoint) {
+                        endpoint.url = e.target.value;
+                    }
+                });
+            });
+        }
+        
+        // 测试单个端点
+        async function testEndpoint(endpoint) {
+            const resultDiv = document.getElementById(`result-${endpoint.id}`);
+            const statusDiv = resultDiv.querySelector('.status');
+            const responseTimeDiv = resultDiv.querySelector('.response-time');
+            const responseDataContainer = resultDiv.querySelector('.response-data-container');
+            const responseDataDiv = resultDiv.querySelector('.response-data');
+            
+            // 显示等待状态
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result pending';
+            statusDiv.className = 'status pending';
+            statusDiv.innerHTML = '测试中... <div class="loading"></div>';
+            responseTimeDiv.textContent = '';
+            responseDataContainer.style.display = 'none';
+            
+            const startTime = Date.now();
+            
+            try {
+                const response = await fetch(endpoint.url, {
+                    method: endpoint.method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    mode: 'cors',
+                    credentials: 'omit'
+                });
+                
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                responseTimeDiv.textContent = `响应时间: ${duration}ms`;
+                
+                let data = null;
+                let dataType = '无内容';
+                
+                try {
+                    const contentType = response.headers.get('content-type') || '';
+                    if (contentType.includes('application/json')) {
+                        data = await response.json();
+                        dataType = 'JSON';
+                    } else if (contentType.includes('image/')) {
+                        data = '[图片数据]';
+                        dataType = contentType;
+                    } else {
+                        data = await response.text();
+                        dataType = 'Text';
+                        if (data.length > 1000) {
+                            data = data.substring(0, 997) + '...';
+                        }
+                    }
+                } catch (e) {
+                    data = `解析响应失败: ${e.message}`;
+                }
+                
+                // 检查是否预期错误
+                if (!response.ok && !endpoint.expectError) {
+                    resultDiv.className = 'result failure';
+                    statusDiv.className = 'status failure';
+                    statusDiv.textContent = `失败: HTTP错误 ${response.status} ${response.statusText}`;
+                    
+                    if (data) {
+                        responseDataContainer.style.display = 'block';
+                        responseDataDiv.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+                    }
+                    
+                    return false;
+                }
+                
+                resultDiv.className = 'result success';
+                statusDiv.className = 'status success';
+                statusDiv.textContent = `成功: ${response.status} ${response.statusText}`;
+                
+                if (data) {
+                    responseDataContainer.style.display = 'block';
+                    responseDataDiv.textContent = typeof data === 'object' ? JSON.stringify(data, null, 2) : data;
+                }
+                
+                return true;
+            } catch (error) {
+                const endTime = Date.now();
+                const duration = endTime - startTime;
+                
+                responseTimeDiv.textContent = `响应时间: ${duration}ms`;
+                
+                resultDiv.className = 'result failure';
+                statusDiv.className = 'status failure';
+                statusDiv.textContent = `失败: ${error.message}`;
+                
+                return false;
+            }
+        }
+        
+        // 运行所有测试
+        async function runAllTests() {
+            const runAllBtn = document.getElementById('run-all-tests');
+            runAllBtn.disabled = true;
+            runAllBtn.innerHTML = '测试中... <div class="loading"></div>';
+            
+            // 清除之前的结果
+            clearResults();
+            
+            let successes = 0;
+            let failures = 0;
+            
+            // 运行除自定义测试外的所有测试
+            for (const endpoint of TEST_ENDPOINTS.filter(ep => !ep.isCustom)) {
+                const success = await testEndpoint(endpoint);
+                if (success) {
+                    successes++;
+                } else {
+                    failures++;
+                }
+                
+                // 短暂延迟以避免请求过快
+                await new Promise(resolve => setTimeout(resolve, 300));
+            }
+            
+            // 更新摘要
+            updateSummary(successes, failures);
+            
+            runAllBtn.disabled = false;
+            runAllBtn.textContent = '运行所有测试';
+        }
+        
+        // 更新测试摘要
+        function updateSummary(successes, failures) {
+            const summaryDiv = document.getElementById('summary');
+            const total = successes + failures;
+            
+            let summaryHTML = `
+                <h2>测试摘要</h2>
+                <p>总测试: ${total}</p>
+                <p>成功: <span style="color: #4caf50; font-weight: bold;">${successes}</span></p>
+                <p>失败: <span style="color: #f44336; font-weight: bold;">${failures}</span></p>
+            `;
+            
+            if (failures > 0) {
+                summaryHTML += `
+                    <div style="margin-top: 15px; padding: 10px; background: #331111; border-radius: 5px;">
+                        <p style="color: #f44336; font-weight: bold;">有${failures}个测试失败，请检查以上错误信息并排除问题。</p>
+                        <p>常见问题排查建议:</p>
+                        <ul>
+                            <li>确认Worker URL是否正确</li>
+                            <li>检查Worker是否已正确部署</li>
+                            <li>确认R2存储桶是否已创建并配置</li>
+                            <li>查看Cloudflare Worker日志以获取更多信息</li>
+                        </ul>
+                    </div>
+                `;
+            } else if (successes > 0) {
+                summaryHTML += `
+                    <div style="margin-top: 15px; padding: 10px; background: #113311; border-radius: 5px;">
+                        <p style="color: #4caf50; font-weight: bold;">所有测试都成功通过！API连接正常工作。</p>
+                    </div>
+                `;
+            }
+            
+            summaryDiv.innerHTML = summaryHTML;
+        }
+        
+        // 清除结果
+        function clearResults() {
+            document.querySelectorAll('.result').forEach(result => {
+                result.style.display = 'none';
+            });
+            
+            document.getElementById('summary').innerHTML = `
+                <h2>测试摘要</h2>
+                <p>点击"运行所有测试"按钮开始测试</p>
+            `;
+        }
+        
+        // 更新Worker URL
+        function updateWorkerUrl() {
+            const input = document.getElementById('worker-url');
+            WORKER_URL = input.value.trim();
+            updateEndpoints();
+            clearResults();
+        }
+        
+        // 初始化
+        document.addEventListener('DOMContentLoaded', () => {
+            // 初始化端点
+            updateEndpoints();
+            
+            // 绑定按钮事件
+            document.getElementById('run-all-tests').addEventListener('click', runAllTests);
+            document.getElementById('clear-results').addEventListener('click', clearResults);
+            document.getElementById('update-url').addEventListener('click', updateWorkerUrl);
+            
+            // 绑定Worker URL输入框回车事件
+            document.getElementById('worker-url').addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    updateWorkerUrl();
+                }
+            });
+        });
+    </script>
+</body>
+</html> 

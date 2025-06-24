@@ -1,3 +1,12 @@
+// 确保SETTINGS对象存在
+if (typeof window.SETTINGS === 'undefined') {
+    console.error('SETTINGS object not found. Initializing with default values.');
+    window.SETTINGS = {
+        worker: { url: "https://ai-image-storage.sharanlillickclz66.workers.dev" },
+        corsProxy: { url: "https://corsproxy.io/?" }
+    };
+}
+
 // DOM 元素
 const promptInput = document.getElementById('prompt-input');
 const sizeSelect = document.getElementById('size-select');
@@ -31,11 +40,20 @@ let generatedImages = [];
 let currentImageIndex = null;
 let apiAvailable = null; // null = 未测试, true = 可用, false = 不可用
 
-// CORS代理URL
-const CORS_PROXY_URL = 'https://corsproxy.io/?';
+// 从设置中获取CORS代理URL和Worker URL
+const CORS_PROXY_URL = window.SETTINGS.corsProxy.url;
+const WORKER_URL = window.SETTINGS.worker.url;
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
+    // 检测是否是Edge浏览器，如果是则默认启用CORS代理
+    if (navigator.userAgent.indexOf("Edg") !== -1) {
+        if (useCorsProxy) {
+            useCorsProxy.checked = true;
+            console.log('检测到Edge浏览器，已自动启用CORS代理');
+        }
+    }
+    
     loadFromLocalStorage();
     setupEventListeners();
     testApiConnection();
@@ -54,6 +72,16 @@ document.addEventListener('DOMContentLoaded', () => {
     `;
     helpBtn.addEventListener('click', showSaveInfo);
     headerActions.insertBefore(helpBtn, historyBtn);
+    
+    // 添加调试按钮
+    const debugBtn = document.createElement('button');
+    debugBtn.className = 'icon-btn';
+    debugBtn.title = '调试API连接';
+    debugBtn.style.backgroundColor = '#ff5722';
+    debugBtn.style.color = 'white';
+    debugBtn.innerHTML = 'API测试';
+    debugBtn.addEventListener('click', debugApiConnection);
+    document.querySelector('header').appendChild(debugBtn);
 });
 
 // 设置事件监听器
@@ -115,37 +143,30 @@ async function testApiConnection() {
     updateApiStatus('loading', 'API测试中...');
     
     try {
-        // 创建一个简单的请求来测试API连接
-        const apiKey = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy";
-        const url = useCorsProxy && useCorsProxy.checked 
-            ? `${CORS_PROXY_URL}https://api.siliconflow.cn/v1/models`
-            : 'https://api.siliconflow.cn/v1/models';
-            
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000); // 10秒超时
-        
-        const response = await fetch(url, {
+        // 使用Worker代理检查API连接
+        const response = await fetch(`${WORKER_URL}/api/test-connection`, {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${apiKey}`,
                 'Content-Type': 'application/json'
-            },
-            signal: controller.signal
+            }
         });
         
-        clearTimeout(timeoutId);
+        const result = await response.json();
         
-        if (response.ok) {
+        if (result.status === 'connected') {
             apiAvailable = true;
             updateApiStatus('connected', 'API可用');
+            generateBtn.disabled = false;
         } else {
             apiAvailable = false;
-            updateApiStatus('error', 'API错误');
+            updateApiStatus('error', `API不可用 ❌ (${result.error || '未知错误'})`);
+            generateBtn.disabled = true;
         }
     } catch (error) {
         console.error('API连接测试失败:', error);
         apiAvailable = false;
-        updateApiStatus('error', 'API不可用');
+        updateApiStatus('error', 'API连接失败 ❌');
+        generateBtn.disabled = true;
     }
 }
 
@@ -157,9 +178,11 @@ function updateApiStatus(status, text) {
 
 // 处理生成图片
 async function handleGenerate() {
+    console.log('生成按钮被点击');
     const prompt = promptInput.value.trim();
     
     if (!prompt || isGenerating) {
+        console.log('提示词为空或正在生成中，退出函数');
         return;
     }
     
@@ -167,6 +190,9 @@ async function handleGenerate() {
     const style = styleSelect.value;
     const steps = parseInt(stepsRange.value);
     const guidance = parseFloat(guidanceRange.value);
+    
+    console.log('生成参数:', { prompt, size, style, steps, guidance });
+    console.log('Worker URL:', WORKER_URL);
     
     // 开始生成状态
     isGenerating = true;
@@ -182,147 +208,127 @@ async function handleGenerate() {
     gallery.insertBefore(loadingCard, gallery.firstChild);
     
     try {
-        // 调用Silicon Flow API生成图片
-        const imageUrl = await generateImageWithAPI(prompt, size, style, steps, guidance);
+        // 准备请求数据
+        const requestData = {
+            prompt: prompt,
+            model: "Kwai-Kolors/Kolors",
+            image_size: size
+        };
+        
+        if (style && style !== 'default') {
+            requestData.style = style;
+        }
+        
+        // 添加高级参数
+        requestData.num_inference_steps = steps;
+        requestData.guidance_scale = guidance;
+        
+        console.log('发送请求数据:', requestData);
+        console.log('请求URL:', `${WORKER_URL}/api/generate-image`);
+        
+        // 使用Worker API代理生成图片
+        const response = await fetch(`${WORKER_URL}/api/generate-image`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(requestData)
+        });
+        
+        console.log('收到响应状态:', response.status, response.statusText);
+        
+        // 获取原始响应文本，便于调试
+        const responseText = await response.text();
+        console.log('原始响应文本:', responseText);
+        
+        // 尝试解析JSON
+        let result;
+        try {
+            result = JSON.parse(responseText);
+            console.log('解析后的响应数据:', result);
+        } catch (parseError) {
+            console.error('响应解析失败:', parseError);
+            throw new Error(`响应解析失败: ${parseError.message}, 原始响应: ${responseText.substring(0, 100)}...`);
+        }
+        
+        if (!response.ok || !result.success) {
+            const errorMsg = typeof result.error === 'object' 
+                ? JSON.stringify(result.error) 
+                : (result.error || '图片生成失败');
+            console.error('图片生成响应错误:', errorMsg);
+            throw new Error(errorMsg);
+        }
         
         // 移除骨架屏
         gallery.removeChild(loadingCard);
         
-        // 添加新图片
-        addImageToGallery(imageUrl, prompt, size, style, steps, guidance);
+        // 检查返回的URL是否有效
+        const imageUrl = result.permanentUrl;
+        if (!imageUrl) {
+            throw new Error('返回的图片URL为空');
+        }
         
-        // 保存到历史记录
-        saveToHistory(imageUrl, prompt, size, style, steps, guidance);
+        console.log('获取到永久URL:', imageUrl);
+        
+        // 测试图片URL是否可访问
+        try {
+            const imgResponse = await fetch(imageUrl, { method: 'HEAD' });
+            console.log('图片URL测试结果:', imgResponse.status, imgResponse.statusText);
+            if (!imgResponse.ok) {
+                console.warn('警告: 图片URL可能无法访问:', imgResponse.status);
+            }
+        } catch (imgError) {
+            console.warn('警告: 图片URL测试失败:', imgError);
+        }
+        
+        // 使用永久URL创建图片卡片
+        const imageData = {
+            url: imageUrl,
+            prompt: prompt,
+            size: size,
+            style: style || 'default',
+            timestamp: new Date().toISOString(),
+            fileName: result.fileName,
+            isPermanent: true
+        };
+        
+        console.log('创建图片数据:', imageData);
+        
+        // 添加到图库和历史记录
+        addImageToGallery(imageData);
+        saveToHistory(imageData);
         
         updateApiStatus('connected', 'AI生成成功');
-        
     } catch (error) {
         console.error('生成图片失败:', error);
+        
+        // 移除骨架屏
+        if (gallery.contains(loadingCard)) {
         gallery.removeChild(loadingCard);
+        }
         
-        // 显示错误提示
-        const errorCard = document.createElement('div');
-        errorCard.className = 'image-card error fade-in';
-        errorCard.innerHTML = `
-            <div class="error-message">生成失败，请重试</div>
-        `;
-        gallery.insertBefore(errorCard, gallery.firstChild);
+        // 调试信息
+        console.log('错误详情:', error);
+        console.log('Worker URL:', WORKER_URL);
+        console.log('API状态:', apiAvailable);
         
-        updateApiStatus('error', '生成失败');
+        // 给用户更有用的提示
+        if (error.message.includes('R2')) {
+            showNotification(`存储图片失败: ${error.message}. 请检查R2存储配置`, 'error');
+        } else if (error.message.includes('fetch') || error.message.includes('network')) {
+            showNotification(`网络请求失败: ${error.message}. 请检查网络连接`, 'error');
+        } else if (error.message.includes('parse') || error.message.includes('JSON')) {
+            showNotification(`响应解析失败: ${error.message}. 服务器返回了无效数据`, 'error');
+        } else {
+        showNotification(`生成失败: ${error.message}`, 'error');
+        }
         
-        // 3秒后移除错误提示
-        setTimeout(() => {
-            if (gallery.contains(errorCard)) {
-                gallery.removeChild(errorCard);
-            }
-        }, 3000);
+        // 尝试重新测试API连接
+        testApiConnection();
     } finally {
         // 结束生成状态
         isGenerating = false;
         generateBtn.classList.remove('loading');
-    }
-}
-
-// 使用Silicon Flow API生成图片
-async function generateImageWithAPI(prompt, size, style, steps, guidance) {
-    // 根据选择的风格调整提示词
-    let enhancedPrompt = prompt;
-    let negativePrompt = "";
-    
-    switch(style) {
-        case 'realistic':
-            enhancedPrompt += ", photorealistic, detailed, high quality";
-            break;
-        case 'anime':
-            enhancedPrompt += ", anime style, vibrant colors, 2D";
-            break;
-        case 'watercolor':
-            enhancedPrompt += ", watercolor painting, artistic, soft colors";
-            break;
-        case '3d':
-            enhancedPrompt += ", 3D render, detailed textures, lighting effects";
-            break;
-    }
-    
-    // 在生产环境中，应该使用环境变量或安全的方式存储API密钥
-    // 这里为了演示，直接使用API密钥（实际应用中应通过后端服务调用API）
-    const apiKey = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy"; // 注意：实际应用中不应在前端暴露API密钥
-    
-    try {
-        // 创建请求数据
-        const requestData = {
-            "model": "Kwai-Kolors/Kolors",
-            "prompt": enhancedPrompt,
-            "negative_prompt": negativePrompt,
-            "image_size": size,
-            "batch_size": 1,
-            "seed": Math.floor(Math.random() * 4999999999), // 随机种子
-            "num_inference_steps": steps,
-            "guidance_scale": guidance
-        };
-        
-        console.log("发送API请求:", requestData);
-        
-        // 决定是否使用CORS代理
-        const useProxy = useCorsProxy && useCorsProxy.checked;
-        const apiUrl = useProxy 
-            ? `${CORS_PROXY_URL}https://api.siliconflow.cn/v1/images/generations`
-            : 'https://api.siliconflow.cn/v1/images/generations';
-        
-        // 添加超时处理
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000); // 60秒超时
-        
-        const response = await fetch(apiUrl, {
-            method: "POST",
-            headers: {
-                "Authorization": `Bearer ${apiKey}`,
-                "Content-Type": "application/json"
-            },
-            body: JSON.stringify(requestData),
-            signal: controller.signal
-        });
-        
-        clearTimeout(timeoutId); // 清除超时
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API响应错误 (${response.status}):`, errorText);
-            throw new Error(`API响应错误: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        console.log("API响应:", data);
-        
-        // 检查API返回的图片URL
-        if (data.images && data.images[0] && data.images[0].url) {
-            return data.images[0].url;
-        } else {
-            throw new Error('API返回数据格式错误');
-        }
-    } catch (error) {
-        console.error('API调用失败:', error);
-        
-        // 如果是CORS错误，提供更明确的错误信息
-        if (error.message.includes('CORS') || error.message.includes('cross-origin')) {
-            console.warn('检测到CORS错误，这是正常的。在实际应用中，应该通过后端服务中转API调用。');
-            
-            // 如果没有启用CORS代理，建议用户启用
-            if (useCorsProxy && !useCorsProxy.checked) {
-                useCorsProxy.checked = true;
-                alert('检测到跨域问题，已自动启用CORS代理。请重试生成图片。');
-                throw new Error('已启用CORS代理，请重试');
-            }
-        }
-        
-        // 如果是超时错误
-        if (error.name === 'AbortError') {
-            console.warn('API请求超时，可能是网络问题或服务器响应慢。');
-        }
-        
-        // 回退到使用占位图
-        console.log('使用占位图作为备用方案');
-        return mockGenerateImage(prompt, size, style);
     }
 }
 
@@ -334,20 +340,20 @@ function createLoadingCard() {
 }
 
 // 添加图片到画廊
-function addImageToGallery(imageUrl, prompt, size, style, steps, guidance) {
+function addImageToGallery(imageData) {
     const imageCard = document.createElement('div');
     imageCard.className = 'image-card fade-in';
     
     const img = document.createElement('img');
-    img.src = imageUrl;
-    img.alt = prompt;
+    img.src = imageData.url;
+    img.alt = imageData.prompt;
     img.loading = 'lazy';
     
     const imageInfo = document.createElement('div');
     imageInfo.className = 'image-info';
     imageInfo.innerHTML = `
-        <span>${formatPrompt(prompt)}</span>
-        <span>${size}</span>
+        <span>${formatPrompt(imageData.prompt)}</span>
+        <span>${imageData.size}</span>
     `;
     
     imageCard.appendChild(img);
@@ -355,37 +361,46 @@ function addImageToGallery(imageUrl, prompt, size, style, steps, guidance) {
     
     // 点击图片查看大图
     imageCard.addEventListener('click', () => {
-        openPreviewModal(imageUrl, prompt, size, style, steps, guidance);
+        openPreviewModal(imageData);
     });
     
     gallery.insertBefore(imageCard, gallery.firstChild);
 }
 
 // 打开预览模态框
-function openPreviewModal(imageUrl, prompt, size, style, steps, guidance) {
-    previewImage.src = imageUrl;
-    previewImage.alt = prompt;
+function openPreviewModal(imageData) {
+    previewImage.src = imageData.url;
+    previewImage.alt = imageData.prompt;
     
     // 显示提示词和设置
-    previewPrompt.textContent = prompt;
-    previewSettings.textContent = `尺寸: ${size} | 风格: ${getStyleName(style)} | 步数: ${steps} | 引导强度: ${guidance}`;
+    previewPrompt.textContent = imageData.prompt;
+    previewSettings.textContent = `尺寸: ${imageData.size} | 风格: ${formatStyle(imageData.style)} | 生成时间: ${formatDate(imageData.timestamp)}`;
     
     // 设置当前图片索引，用于下载和分享
-    currentImageIndex = generatedImages.findIndex(img => img.url === imageUrl);
+    currentImageIndex = generatedImages.findIndex(img => img.url === imageData.url);
     
     previewModal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
 
 // 获取风格名称
-function getStyleName(styleValue) {
-    const styles = {
-        'realistic': '写实风格',
+function formatStyle(style) {
+    if (!style || style === 'default') return '默认';
+    
+    const styleMap = {
         'anime': '动漫风格',
+        'photographic': '照片风格',
+        'digital-art': '数字艺术',
+        'comic-book': '漫画风格',
+        'fantasy-art': '奇幻艺术',
+        'oil-painting': '油画风格',
         'watercolor': '水彩风格',
+        '3d-render': '3D渲染',
+        'realistic': '写实风格',
         '3d': '3D渲染'
     };
-    return styles[styleValue] || styleValue;
+    
+    return styleMap[style] || style;
 }
 
 // 关闭预览模态框
@@ -404,15 +419,26 @@ function downloadCurrentImage() {
     const link = document.createElement('a');
     
     // 从URL加载图片以保存到本地
-    fetch(image.url)
-        .then(response => response.blob())
+    console.log(`尝试下载图片: ${image.url}`);
+    fetch(image.url, {
+        method: 'GET',
+        mode: 'cors',
+        credentials: 'omit'
+    })
+        .then(response => {
+            if (!response.ok) {
+                console.error(`获取图片失败: ${response.status} ${response.statusText}`);
+                throw new Error(`Failed to fetch image: ${response.status}`);
+            }
+            return response.blob();
+        })
         .then(blob => {
             // 创建一个本地Blob URL
             const blobUrl = URL.createObjectURL(blob);
             
             // 设置下载链接属性
             link.href = blobUrl;
-            link.download = `ai-image-${Date.now()}.png`;
+            link.download = image.fileName || `ai-image-${Date.now()}.png`;
             
             // 添加链接到DOM，触发点击，然后移除
             document.body.appendChild(link);
@@ -426,7 +452,46 @@ function downloadCurrentImage() {
         })
         .catch(error => {
             console.error('下载图片失败:', error);
-            alert('下载图片失败，请重试');
+            
+            // 如果图片URL已过期，尝试使用R2 Worker获取永久URL
+            if (image.isPermanent && image.fileName) {
+                alert('正在从云存储获取图片，请稍候...');
+                
+                // 构建直接访问R2存储的URL
+                const r2Url = `${WORKER_URL}/image/${image.fileName}`;
+                console.log(`尝试从R2获取图片: ${r2Url}`);
+                
+                // 尝试从R2获取
+                fetch(r2Url, {
+                    method: 'GET',
+                    mode: 'cors',
+                    credentials: 'omit'
+                })
+                    .then(response => {
+                        if (!response.ok) {
+                            console.error(`从R2获取图片失败: ${response.status} ${response.statusText}`);
+                            throw new Error('无法从云存储获取图片');
+                        }
+                        return response.blob();
+                    })
+                    .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        link.href = blobUrl;
+                        link.download = image.fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        setTimeout(() => {
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(blobUrl);
+                        }, 100);
+                    })
+                    .catch(r2Error => {
+                        console.error('从云存储获取图片失败:', r2Error);
+                        alert('下载图片失败，请重试或联系管理员');
+                    });
+            } else {
+                alert('下载图片失败，图片链接可能已过期');
+            }
         });
 }
 
@@ -436,20 +501,25 @@ function shareCurrentImage() {
     
     const image = generatedImages[currentImageIndex];
     
+    // 检查图片URL是否可能已过期，优先使用永久URL
+    const shareUrl = (image.isPermanent && image.fileName) 
+        ? `${WORKER_URL}/image/${image.fileName}` 
+        : image.url;
+    
     // 检查是否支持网页分享API
     if (navigator.share) {
         navigator.share({
             title: '我用AI生成的图片',
             text: image.prompt,
-            url: image.url
+            url: shareUrl
         }).catch(error => {
             console.error('分享失败:', error);
         });
     } else {
         // 复制图片链接到剪贴板
-        navigator.clipboard.writeText(image.url)
+        navigator.clipboard.writeText(shareUrl)
             .then(() => {
-                alert('图片链接已复制到剪贴板');
+                alert('永久图片链接已复制到剪贴板');
             })
             .catch(err => {
                 console.error('复制失败:', err);
@@ -463,75 +533,60 @@ function toggleHistoryPanel() {
 }
 
 // 保存到历史记录
-function saveToHistory(url, prompt, size, style, steps, guidance) {
-    const timestamp = new Date().getTime();
-    const imageData = {
-        url,
-        prompt,
-        size,
-        style,
-        steps,
-        guidance,
-        timestamp
-    };
-    
+function saveToHistory(imageData) {
     generatedImages.unshift(imageData);
     
-    // 最多保存20条记录
-    if (generatedImages.length > 20) {
-        generatedImages.pop();
+    // 限制历史记录数量
+    if (generatedImages.length > 50) {
+        generatedImages = generatedImages.slice(0, 50);
     }
     
-    // 保存到本地存储
-    localStorage.setItem('aiImageHistory', JSON.stringify(generatedImages));
+    // 保存到localStorage
+    localStorage.setItem('aiGeneratedImages', JSON.stringify(generatedImages));
     
-    // 更新历史记录UI
-    updateHistoryList();
+    // 更新历史面板
+    updateHistoryPanel();
 }
 
-// 更新历史记录列表
-function updateHistoryList() {
+// 更新历史面板
+function updateHistoryPanel() {
     historyList.innerHTML = '';
     
     if (generatedImages.length === 0) {
-        const emptyHistory = document.createElement('div');
-        emptyHistory.className = 'empty-history';
-        emptyHistory.textContent = '暂无历史记录';
-        historyList.appendChild(emptyHistory);
+        historyList.innerHTML = '<p class="empty-history">暂无历史记录</p>';
         return;
     }
     
-    generatedImages.forEach((image, index) => {
-        const historyItem = document.createElement('div');
-        historyItem.className = 'history-item';
+    generatedImages.forEach((imageData, index) => {
+        const item = document.createElement('div');
+        item.className = 'history-item';
         
-        historyItem.innerHTML = `
-            <img src="${image.url}" alt="${image.prompt}">
-            <div class="history-item-details">
-                <div class="history-item-prompt">${formatPrompt(image.prompt)}</div>
-                <div class="history-item-date">${formatDate(image.timestamp)}</div>
+        item.innerHTML = `
+            <img src="${imageData.url}" alt="${imageData.prompt}">
+            <div class="history-item-info">
+                <p>${formatPrompt(imageData.prompt)}</p>
+                <span>${formatDate(imageData.timestamp)}</span>
             </div>
         `;
         
-        // 点击历史记录项查看大图
-        historyItem.addEventListener('click', () => {
-            const steps = image.steps || 20; // 兼容旧数据
-            const guidance = image.guidance || 7.5; // 兼容旧数据
-            openPreviewModal(image.url, image.prompt, image.size, image.style, steps, guidance);
-            toggleHistoryPanel();
+        item.addEventListener('click', () => {
+            openPreviewModal(imageData);
         });
         
-        historyList.appendChild(historyItem);
+        historyList.appendChild(item);
     });
+    
+    // 更新历史记录数量
+    document.getElementById('history-count').textContent = generatedImages.length;
 }
 
 // 从本地存储加载历史记录
 function loadFromLocalStorage() {
-    const savedHistory = localStorage.getItem('aiImageHistory');
+    const savedHistory = localStorage.getItem('aiGeneratedImages');
     
     if (savedHistory) {
         generatedImages = JSON.parse(savedHistory);
-        updateHistoryList();
+        updateHistoryPanel();
         
         // 将历史记录中的图片添加到画廊
         if (generatedImages.length > 0) {
@@ -540,9 +595,7 @@ function loadFromLocalStorage() {
             // 只展示最近5张图片
             const recentImages = generatedImages.slice(0, 5);
             recentImages.forEach(image => {
-                const steps = image.steps || 20; // 兼容旧数据
-                const guidance = image.guidance || 7.5; // 兼容旧数据
-                addImageToGallery(image.url, image.prompt, image.size, image.style, steps, guidance);
+                addImageToGallery(image);
             });
         }
     }
@@ -564,26 +617,140 @@ function formatDate(timestamp) {
     });
 }
 
-// 模拟API调用（作为备用方案）
-async function mockGenerateImage(prompt, size, style) {
-    // 模拟API延迟
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
-    // 为了演示，返回随机占位图
-    const width = size.split('x')[0];
-    const height = size.split('x')[1];
-    
-    // 使用不同的占位图服务生成随机图片
-    const imageServices = [
-        `https://picsum.photos/${width}/${height}?random=${Date.now()}`,
-        `https://source.unsplash.com/random/${width}x${height}?sig=${Date.now()}`,
-        `https://placeimg.com/${width}/${height}/nature?${Date.now()}`
-    ];
-    
-    return imageServices[Math.floor(Math.random() * imageServices.length)];
-}
-
 // 显示保存信息弹窗
 function showSaveInfo() {
+    // 检测是否是Edge浏览器
+    const isEdgeBrowser = navigator.userAgent.indexOf("Edg") !== -1;
+    
+    // 更新保存说明内容，包含R2永久存储信息
+    const tooltipContent = document.querySelector('.tooltip-content');
+    tooltipContent.innerHTML = `
+        <h3>关于图片保存</h3>
+        <p>1. 图片生成后会立即上传到云存储以确保永久保存</p>
+        <p>2. 即使一小时后原始图片链接失效，您依然可以访问所有历史图片</p>
+        <p>3. 图片URL和提示词会自动保存在浏览器的本地存储中</p>
+        <p>4. 点击图片后，可以使用"下载"按钮将图片保存到您的设备上</p>
+        <p>5. 下载的图片将保存在您的默认下载文件夹中</p>
+        <p>6. 您可以随时在"历史记录"中查看并下载之前生成的图片</p>
+        ${isEdgeBrowser ? '<p style="color:#f0a020"><strong>注意:</strong> 检测到您正在使用Edge浏览器，已自动启用CORS代理以提高兼容性</p>' : ''}
+        <button id="close-save-info" class="action-btn">我知道了</button>
+    `;
+    
+    // 重新绑定关闭按钮事件
+    document.getElementById('close-save-info').addEventListener('click', () => {
+        saveInfoOverlay.classList.remove('active');
+    });
+    
     saveInfoOverlay.classList.add('active');
+}
+
+// 显示通知
+function showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <i class="notification-icon ${getNotificationIcon(type)}"></i>
+            <span>${message}</span>
+        </div>
+    `;
+    
+    document.body.appendChild(notification);
+    
+    // 淡入动画
+    setTimeout(() => notification.classList.add('visible'), 10);
+    
+    // 自动消失
+    setTimeout(() => {
+        notification.classList.remove('visible');
+        setTimeout(() => notification.remove(), 300);
+    }, 4000);
+}
+
+// 获取通知图标
+function getNotificationIcon(type) {
+    switch (type) {
+        case 'success': return 'fas fa-check-circle';
+        case 'error': return 'fas fa-exclamation-circle';
+        case 'warning': return 'fas fa-exclamation-triangle';
+        default: return 'fas fa-info-circle';
+    }
+}
+
+// 调试API连接
+async function debugApiConnection() {
+    // 添加高级调试选项
+    const debugChoice = confirm('选择调试方式：\n点击"确定"打开API测试工具\n点击"取消"在控制台执行快速测试');
+    
+    if (debugChoice) {
+        const debugWindow = window.open('test-api-connection.html', '_blank');
+        if (!debugWindow) {
+            alert('请允许打开弹窗以查看API测试工具');
+        }
+    } else {
+        console.log('===== 快速API测试开始 =====');
+        console.log('SETTINGS对象:', window.SETTINGS);
+        console.log('Worker URL:', WORKER_URL);
+        
+        try {
+            // 测试API连接
+            console.log('测试API连接状态...');
+            const connectionTest = await fetch(`${WORKER_URL}/api/test-connection`);
+            const connectionResult = await connectionTest.json();
+            console.log('API连接测试结果:', connectionResult);
+            
+            // 测试Worker信息
+            console.log('获取Worker信息...');
+            const workerTest = await fetch(WORKER_URL);
+            const workerResult = await workerTest.json();
+            console.log('Worker信息:', workerResult);
+            
+            // 测试图片获取
+            console.log('测试图片获取功能...');
+            try {
+                const imageTest = await fetch(`${WORKER_URL}/image/test-image.png`);
+                console.log('图片获取测试状态:', imageTest.status, imageTest.statusText);
+            } catch (e) {
+                console.log('图片获取测试失败(预期结果，因为测试图片可能不存在):', e.message);
+            }
+            
+            // 测试R2状态
+            console.log('准备测试发送简单生成请求...');
+            try {
+                const testGenRequest = {
+                    prompt: "测试图片请求",
+                    model: "Kwai-Kolors/Kolors",
+                    image_size: "256x256"
+                };
+                
+                const testGenResponse = await fetch(`${WORKER_URL}/api/generate-image`, {
+                    method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(testGenRequest)
+                });
+                
+                if (testGenResponse.ok) {
+                    console.log('测试生成请求成功，查看详细响应');
+                    const testGenResult = await testGenResponse.json();
+                    console.log('测试生成响应:', testGenResult);
+                } else {
+                    console.error('测试生成请求失败:', testGenResponse.status, testGenResponse.statusText);
+                    const errorText = await testGenResponse.text();
+                    console.error('错误详情:', errorText);
+                }
+            } catch (testGenError) {
+                console.error('测试生成请求异常:', testGenError);
+            }
+            
+            console.log('===== 快速API测试完成 =====');
+        
+        // 显示调试信息
+            showNotification('快速API测试完成，请查看控制台', 'info');
+    } catch (error) {
+            console.error('快速API测试失败:', error);
+            showNotification(`API测试错误: ${error.message}`, 'error');
+        }
+    }
 } 

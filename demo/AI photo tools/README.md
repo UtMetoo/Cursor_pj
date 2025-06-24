@@ -62,90 +62,167 @@
 
 ---
 
-#### **技术实现要点**  
-1. **前端框架**（可选）  
-   - 纯原生JS实现，或使用Vue/React简化状态管理（如历史记录列表）。  
+## 项目实现
 
-2. **API调用示例**  
-   ```javascript
-   async function generateImage(prompt) {
-     const response = await fetch("https://api.openai.com/v1/images/generations", {
-       method: "POST",
-       headers: { "Authorization": "Bearer YOUR_API_KEY" },
-       body: JSON.stringify({ prompt, size: "512x512" })
-     });
-     return await response.json();
-   }
-   ```
+本项目已经实现了一个基于纯HTML/CSS/JavaScript的AI图片生成工具，通过Cloudflare Worker和R2存储实现了真实的AI图像生成功能，具有以下特点：
 
-3. **性能优化**  
-   - 图片懒加载（`<img loading="lazy">`）。  
-   - 防抖（Debounce）用户频繁提交请求。  
+### 1. 技术架构
 
----
+- **前端**：纯HTML/CSS/JavaScript实现
+- **API代理**：Cloudflare Worker处理API请求和CORS问题
+- **图片存储**：Cloudflare R2存储生成的图片
+- **AI引擎**：硅基流动API (Silicon Flow) 提供图像生成服务
 
-#### **示例效果参考**  
-![UI Mockup](https://example.com/ai-image-generator-mockup.jpg)  
-（描述：左侧输入面板，右侧图片瀑布流，顶部导航栏含历史记录入口）
+### 2. 核心功能
 
----
+- **美观的深色UI设计**
+  - 采用深色主题搭配紫色渐变色调
+  - 使用Inter和Roboto字体增强现代感
+  - 精心设计的卡片、按钮和交互元素
 
-#### **交付物要求**  
-1. 完整HTML/CSS/JS代码，适配移动端（`@media`查询）。  
-2. 详细的注释说明关键交互逻辑。  
-3. 可选的Figma/Sketch设计稿链接（若需视觉稿参考）。  
+- **完整的用户交互流程**
+  - 文本输入区支持多行输入
+  - 图片尺寸和风格选择
+  - 高级选项（生成步数、引导强度等）
+  - 生成按钮带加载状态
+  - API连接状态指示
 
-请根据此提示词生成代码，并优先确保UI的**美观性**与**用户体验流畅性**。如需调整设计风格或功能优先级，请随时沟通！
+- **增强的用户体验**
+  - 骨架屏加载效果
+  - 图片点击放大预览
+  - 历史记录面板
+  - 下载和分享功能
+  - 通知系统
 
----
+- **本地存储功能**
+  - 使用localStorage保存历史记录
+  - 自动加载历史图片
 
-## 实现说明
+- **响应式设计**
+  - 适配移动端和桌面端
+  - 流畅的动画和过渡效果
 
-本项目已经实现了一个基于纯HTML/CSS/JavaScript的AI图片生成工具雏形，具有以下特点：
+### 3. 文件结构
 
-1. **美观的深色UI设计**
-   - 采用深色主题搭配紫色渐变色调
-   - 使用Inter和Roboto字体增强现代感
-   - 精心设计的卡片、按钮和交互元素
+- `index.html` - 主页面结构
+- `styles.css` - 样式表
+- `settings.js` - 全局配置文件
+- `script.js` - 主要交互逻辑
+- `r2-worker.js` - Cloudflare Worker代码
+- `wrangler.toml` - Cloudflare Worker配置文件
+- `test-api-connection.html/js` - API连接测试工具
 
-2. **完整的用户交互流程**
-   - 文本输入区支持多行输入
-   - 图片尺寸和风格选择
-   - 生成按钮带加载状态
-   - 图片展示区支持瀑布流布局
+### 4. API 集成
 
-3. **增强的用户体验**
-   - 骨架屏加载效果
-   - 图片点击放大预览
-   - 历史记录面板
-   - 下载和分享功能
+本项目使用Cloudflare Worker作为中间层，处理以下任务：
 
-4. **响应式设计**
-   - 适配移动端和桌面端
-   - 流畅的动画和过渡效果
+1. **API代理**：解决前端直接调用AI服务API的CORS问题
+2. **图片存储**：将生成的图片保存到Cloudflare R2存储桶
+3. **安全性**：隐藏API密钥，只在服务器端使用
 
-5. **本地存储功能**
-   - 使用localStorage保存历史记录
-   - 自动加载历史图片
+Worker提供的主要API端点：
+- `/api/test-connection` - 测试API连接状态
+- `/api/generate-image` - 生成并存储AI图像
+- `/image/{fileName}` - 获取存储的图片
 
-### 如何使用
+### 5. 如何使用
 
 1. 在文本框中输入你想要生成的图片描述
 2. 选择图片尺寸和风格
-3. 点击"生成图片"按钮
-4. 等待图片生成（目前使用占位图模拟API调用）
-5. 点击图片可查看大图，并可下载或分享
+3. 根据需要调整高级选项
+4. 点击"生成图片"按钮
+5. 等待图片生成（通常需要10-30秒）
+6. 点击图片可查看大图，并可下载或分享
+
+### 6. 部署说明
+
+#### 前端部署
+直接将所有前端文件上传到任何静态网站托管服务即可使用。
+
+#### Cloudflare Worker部署
+1. 安装Cloudflare Wrangler CLI：`npm install -g wrangler`
+2. 登录到Cloudflare账户：`wrangler login`
+3. 创建R2存储桶：`wrangler r2 bucket create ai-generated-images`
+4. 更新`wrangler.toml`中的配置
+5. 部署Worker：`wrangler publish`
+
+### 7. 配置说明
+
+在`settings.js`文件中可以配置以下内容：
+
+- Worker URL
+- CORS代理设置
+- 默认模型参数
+- UI和存储选项
+
+### 8. 故障排除
+
+如果"生成图片"按钮无响应，请尝试以下步骤：
+
+1. 检查浏览器控制台是否有错误信息
+2. 确认API连接状态（点击头部的API状态指示器）
+3. 尝试点击"API测试"按钮进行连接测试
+4. 确保`settings.js`中的Worker URL配置正确
+5. 检查Cloudflare Worker是否正常运行
+
+### 9. 未来改进方向
+
+1. 添加更多AI模型支持（如DALL-E、Midjourney等）
+2. 增加图像编辑功能（如简单的滤镜、裁剪等）
+3. 实现云端存储和用户账户系统
+4. 增加提示词助手功能
+5. 优化移动端体验和性能
+
+---
+
+## 技术支持
+
+如有任何问题或建议，请提交Issue或联系项目维护者。
+
+---
+
+## 许可证
+
+MIT License
+
+---
+
+## 最新更新说明（2025-06-24）
+
+### 问题修复
+
+我们发现了一个关键问题：之前使用的"silkroad"模型现在已不可用，导致图片生成失败，错误提示为"Model does not exist"。
+
+### 已实施的修复
+
+1. 更新了`settings.js`中的默认模型设置：
+   - 将`silkroad`模型更改为`Kwai-Kolors/Kolors`模型
+
+2. 优化了错误处理逻辑：
+   - 添加了更详细的错误日志
+   - 改进了错误消息显示
+   - 增强了图片URL访问测试
+
+3. 改进了R2存储URL生成方式：
+   - 现在使用Worker自身的URL构建永久链接，不再依赖固定域名
+   - 添加了更多调试信息以便追踪问题
+
+### 如何更新您的实例
+
+1. 重新部署Cloudflare Worker:
+   ```bash
+   wrangler deploy
+   ```
+
+2. 刷新前端页面以加载更新后的设置和逻辑
+
+3. 使用API测试工具（点击界面上的"API测试"按钮）验证连接状态
+
+4. 尝试使用新模型生成图片
 
 ### 注意事项
 
-- 当前版本使用随机占位图模拟API调用
-- 实际使用时需替换`mockGenerateImage`函数为真实的AI图像生成API
-- 可以根据需要调整UI样式和交互细节
+- 硅基流动API的可用模型可能会定期更新，如果将来再次遇到"Model does not exist"错误，请检查最新的可用模型列表
+- 可以通过API测试工具或调用`/api/test-connection`端点获取当前可用的模型列表
 
-### 未来改进方向
-
-1. 接入真实的AI图像生成API（如DALL-E、Stable Diffusion等）
-2. 添加更多图像参数控制（如风格强度、种子值等）
-3. 增加图像编辑功能（如简单的滤镜、裁剪等）
-4. 实现云端存储和用户账户系统
-5. 优化移动端体验和性能
+如有任何问题，请联系项目维护者获取支持。
