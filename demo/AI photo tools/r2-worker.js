@@ -84,6 +84,16 @@ export default {
           return await handleImageGeneration(request, env, corsHeaders);
         }
         
+        // 删除单张图片
+        if (apiPath === 'delete-image') {
+          return await handleImageDelete(request, env, corsHeaders);
+        }
+        
+        // 批量清理图片
+        if (apiPath === 'cleanup-images') {
+          return await handleImageCleanup(request, env, corsHeaders);
+        }
+        
         // API路径不匹配
         return errorResponse(`Unknown API endpoint: ${apiPath}`, 404, corsHeaders);
       }
@@ -93,10 +103,12 @@ export default {
         // 返回API信息
         return new Response(JSON.stringify({
           name: 'AI Image API & Storage',
-          version: '2.2',
+          version: '2.3',
           endpoints: {
             '/api/test-connection': 'Test API connection',
             '/api/generate-image': 'Generate AI image',
+            '/api/delete-image': 'Delete a specific image',
+            '/api/cleanup-images': 'Batch delete images by name or date',
             '/image/{fileName}': 'Get stored image (supports GET and HEAD)',
             'POST /': 'Legacy: Upload an image to R2'
           }
@@ -504,6 +516,185 @@ async function handleImageFetch(fileName, env, corsHeaders, method) {
       500, 
       corsHeaders, 
       { message: error.message, fileName }
+    );
+  }
+}
+
+// 处理图片删除请求
+async function handleImageDelete(request, env, corsHeaders) {
+  try {
+    // 解析请求数据
+    const requestData = await request.json();
+    const { fileName } = requestData;
+    
+    logRequest(request, { action: '删除图片', fileName });
+    
+    // 验证文件名
+    if (!fileName || !fileName.match(/^[\w\-\.]+\.(png|jpg|jpeg|gif|webp)$/i)) {
+      return errorResponse(
+        "无效的文件名格式", 
+        400, 
+        corsHeaders
+      );
+    }
+    
+    // 检查图片是否存在
+    const object = await env.AI_IMAGES.head(fileName);
+    if (object === null) {
+      return errorResponse(
+        "找不到要删除的图片", 
+        404, 
+        corsHeaders, 
+        { fileName }
+      );
+    }
+    
+    // 删除图片
+    await env.AI_IMAGES.delete(fileName);
+    console.log(`图片已删除: ${fileName}`);
+    
+    // 返回成功响应
+    return new Response(JSON.stringify({
+      success: true,
+      message: "图片已成功删除",
+      fileName: fileName,
+      timestamp: new Date().toISOString()
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  } catch (error) {
+    console.error('删除图片失败:', error);
+    
+    return errorResponse(
+      "删除图片时发生错误", 
+      500, 
+      corsHeaders, 
+      { message: error.message }
+    );
+  }
+}
+
+// 处理批量清理图片请求
+async function handleImageCleanup(request, env, corsHeaders) {
+  try {
+    // 解析请求数据
+    const requestData = await request.json();
+    const { fileNames, olderThan } = requestData;
+    
+    logRequest(request, { 
+      action: '批量清理图片', 
+      fileCount: fileNames?.length || 0,
+      olderThan: olderThan || 'not specified'
+    });
+    
+    // 验证请求参数
+    if (!fileNames && !olderThan) {
+      return errorResponse(
+        "需要提供 fileNames 或 olderThan 参数", 
+        400, 
+        corsHeaders
+      );
+    }
+    
+    let deletedCount = 0;
+    let failedCount = 0;
+    const deletedFiles = [];
+    const failedFiles = [];
+    
+    // 按文件名批量删除
+    if (fileNames && Array.isArray(fileNames)) {
+      for (const fileName of fileNames) {
+        try {
+          // 验证文件名格式
+          if (!fileName.match(/^[\w\-\.]+\.(png|jpg|jpeg|gif|webp)$/i)) {
+            failedFiles.push({ fileName, reason: "无效的文件名格式" });
+            failedCount++;
+            continue;
+          }
+          
+          // 删除图片
+          await env.AI_IMAGES.delete(fileName);
+          deletedFiles.push(fileName);
+          deletedCount++;
+        } catch (error) {
+          console.error(`删除图片 ${fileName} 失败:`, error);
+          failedFiles.push({ fileName, reason: error.message });
+          failedCount++;
+        }
+      }
+    }
+    
+    // 按日期删除旧图片
+    if (olderThan) {
+      try {
+        const cutoffDate = new Date(olderThan);
+        if (isNaN(cutoffDate.getTime())) {
+          return errorResponse(
+            "无效的日期格式", 
+            400, 
+            corsHeaders
+          );
+        }
+        
+        // 列出所有对象
+        const objects = await env.AI_IMAGES.list();
+        
+        for (const object of objects.objects) {
+          try {
+            // 获取对象的元数据
+            const metadata = await env.AI_IMAGES.head(object.key);
+            if (metadata && metadata.customMetadata && metadata.customMetadata.created) {
+              const createdDate = new Date(metadata.customMetadata.created);
+              
+              // 如果创建日期早于截止日期，则删除
+              if (createdDate < cutoffDate) {
+                await env.AI_IMAGES.delete(object.key);
+                deletedFiles.push(object.key);
+                deletedCount++;
+              }
+            }
+          } catch (error) {
+            console.error(`处理对象 ${object.key} 失败:`, error);
+            failedFiles.push({ fileName: object.key, reason: error.message });
+            failedCount++;
+          }
+        }
+      } catch (error) {
+        console.error('列出对象失败:', error);
+        return errorResponse(
+          "列出存储对象失败", 
+          500, 
+          corsHeaders, 
+          { message: error.message }
+        );
+      }
+    }
+    
+    // 返回清理结果
+    return new Response(JSON.stringify({
+      success: true,
+      deletedCount,
+      failedCount,
+      deletedFiles,
+      failedFiles,
+      timestamp: new Date().toISOString()
+    }), {
+      headers: {
+        'Content-Type': 'application/json',
+        ...corsHeaders
+      }
+    });
+  } catch (error) {
+    console.error('批量清理图片失败:', error);
+    
+    return errorResponse(
+      "批量清理图片时发生错误", 
+      500, 
+      corsHeaders, 
+      { message: error.message }
     );
   }
 } 

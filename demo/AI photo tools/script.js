@@ -143,6 +143,11 @@ function setupEventListeners() {
             saveInfoOverlay.classList.remove('active');
         }
     });
+    
+    // 设置每天自动清理过期图片的定时器
+    // 每24小时执行一次清理
+    setInterval(cleanupOldDeletedImages, 24 * 60 * 60 * 1000);
+    console.log('已设置自动清理定时器');
 }
 
 // 测试API连接
@@ -423,6 +428,52 @@ function openPreviewModal(imageData) {
     // 设置当前图片索引，用于下载和分享
     currentImageIndex = generatedImages.findIndex(img => img.url === imageData.url);
     
+    // 添加删除按钮
+    const actionButtons = document.querySelector('.modal-actions');
+    
+    // 移除旧的删除按钮（如果有）
+    const oldSoftDeleteBtn = document.getElementById('soft-delete-btn');
+    if (oldSoftDeleteBtn) oldSoftDeleteBtn.remove();
+    
+    const oldHardDeleteBtn = document.getElementById('hard-delete-btn');
+    if (oldHardDeleteBtn) oldHardDeleteBtn.remove();
+    
+    // 添加软删除按钮
+    const softDeleteBtn = document.createElement('button');
+    softDeleteBtn.id = 'soft-delete-btn';
+    softDeleteBtn.className = 'action-btn delete-btn';
+    softDeleteBtn.innerHTML = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"></polyline>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+        </svg>
+        本地删除
+    `;
+    softDeleteBtn.addEventListener('click', () => softDeleteImage(currentImageIndex));
+    
+    // 添加硬删除按钮（如果有文件名）
+    if (imageData.fileName) {
+        const hardDeleteBtn = document.createElement('button');
+        hardDeleteBtn.id = 'hard-delete-btn';
+        hardDeleteBtn.className = 'action-btn delete-btn hard-delete';
+        hardDeleteBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="3 6 5 6 21 6"></polyline>
+                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                <line x1="10" y1="11" x2="10" y2="17"></line>
+                <line x1="14" y1="11" x2="14" y2="17"></line>
+            </svg>
+            永久删除
+        `;
+        hardDeleteBtn.addEventListener('click', () => hardDeleteImage(imageData.fileName));
+        
+        // 添加到操作按钮区域
+        actionButtons.appendChild(hardDeleteBtn);
+    }
+    
+    // 添加软删除按钮到操作按钮区域
+    actionButtons.appendChild(softDeleteBtn);
+    
     previewModal.classList.add('active');
     document.body.style.overflow = 'hidden';
 }
@@ -571,6 +622,129 @@ function shareCurrentImage() {
     }
 }
 
+// 软删除图片（仅从本地存储中标记为删除）
+function softDeleteImage(imageIndex) {
+    if (!confirm("确定要从历史记录中移除这张图片吗？")) return;
+    
+    // 标记为已删除但不实际删除
+    generatedImages[imageIndex].deleted = true;
+    generatedImages[imageIndex].deletedAt = new Date().toISOString();
+    
+    // 更新本地存储
+    localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(generatedImages));
+    
+    // 从显示中移除
+    updateHistoryPanel();
+    updateGallery();
+    closePreviewModal();
+    showNotification("图片已标记为删除", "success");
+}
+
+// 硬删除图片（从R2存储中永久删除）
+async function hardDeleteImage(fileName) {
+    if (!confirm("确定要永久删除这张图片吗？此操作不可撤销！")) return;
+    
+    try {
+        showNotification("正在删除图片...", "info");
+        
+        const response = await fetch(`${WORKER_URL}/api/delete-image`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileName })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // 从本地存储中彻底删除
+            generatedImages = generatedImages.filter(img => img.fileName !== fileName);
+            localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(generatedImages));
+            
+            // 更新UI
+            updateHistoryPanel();
+            updateGallery();
+            closePreviewModal();
+            showNotification("图片已永久删除", "success");
+        } else {
+            throw new Error(result.error || "删除失败");
+        }
+    } catch (error) {
+        console.error('删除图片失败:', error);
+        showNotification(`删除失败: ${error.message}`, "error");
+    }
+}
+
+// 定期清理标记为已删除的旧图片
+async function cleanupOldDeletedImages() {
+    // 获取标记为已删除且超过30天的图片
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    const filesToDelete = generatedImages
+        .filter(img => img.deleted && new Date(img.deletedAt) < thirtyDaysAgo)
+        .map(img => img.fileName)
+        .filter(Boolean); // 过滤掉undefined或null
+    
+    if (filesToDelete.length === 0) {
+        console.log('没有需要清理的旧图片');
+        return;
+    }
+    
+    console.log(`准备清理 ${filesToDelete.length} 张过期图片`);
+    
+    try {
+        const response = await fetch(`${WORKER_URL}/api/cleanup-images`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ fileNames: filesToDelete })
+        });
+        
+        const result = await response.json();
+        if (result.success) {
+            // 从本地存储中彻底删除这些图片
+            generatedImages = generatedImages.filter(img => !filesToDelete.includes(img.fileName));
+            localStorage.setItem(HISTORY_STORAGE_KEY, JSON.stringify(generatedImages));
+            console.log(`已清理 ${result.deletedCount} 张过期图片，${result.failedCount} 张失败`);
+            
+            // 如果在当前会话中清理了图片，显示通知
+            if (result.deletedCount > 0) {
+                showNotification(`已自动清理 ${result.deletedCount} 张过期图片`, "info");
+            }
+        } else {
+            console.error('清理过期图片失败:', result.error);
+        }
+    } catch (error) {
+        console.error('清理过期图片失败:', error);
+    }
+}
+
+// 更新画廊显示
+function updateGallery() {
+    // 清空当前画廊
+    while (gallery.firstChild) {
+        if (gallery.firstChild.classList && gallery.firstChild.classList.contains('placeholder-text')) {
+            break;
+        }
+        gallery.removeChild(gallery.firstChild);
+    }
+    
+    // 获取未删除的最近图片
+    const recentImages = generatedImages
+        .filter(img => !img.deleted)
+        .slice(0, 5);
+    
+    // 如果没有图片，显示占位文本
+    if (recentImages.length === 0) {
+        placeholderText.style.display = '';
+        return;
+    }
+    
+    // 添加图片到画廊
+    placeholderText.style.display = 'none';
+    recentImages.forEach(image => {
+        addImageToGallery(image);
+    });
+}
+
 // 切换历史记录面板
 function toggleHistoryPanel() {
     historyPanel.classList.toggle('active');
@@ -596,12 +770,15 @@ function saveToHistory(imageData) {
 function updateHistoryPanel() {
     historyList.innerHTML = '';
     
-    if (generatedImages.length === 0) {
+    // 过滤出未删除的图片
+    const activeImages = generatedImages.filter(img => !img.deleted);
+    
+    if (activeImages.length === 0) {
         historyList.innerHTML = '<p class="empty-history">暂无历史记录</p>';
         return;
     }
     
-    generatedImages.forEach((imageData, index) => {
+    activeImages.forEach((imageData, index) => {
         const item = document.createElement('div');
         item.className = 'history-item';
         
@@ -623,7 +800,7 @@ function updateHistoryPanel() {
     // 更新历史记录数量
     const historyCountElement = document.getElementById('history-count');
     if (historyCountElement) {
-        historyCountElement.textContent = generatedImages.length;
+        historyCountElement.textContent = activeImages.length;
     }
 }
 
@@ -635,16 +812,13 @@ function loadFromLocalStorage() {
         generatedImages = JSON.parse(savedHistory);
         updateHistoryPanel();
         
-        // 将历史记录中的图片添加到画廊
-        if (generatedImages.length > 0) {
-            placeholderText.style.display = 'none';
-            
-            // 只展示最近5张图片
-            const recentImages = generatedImages.slice(0, 5);
-            recentImages.forEach(image => {
-                addImageToGallery(image);
-            });
-        }
+        // 更新画廊显示
+        updateGallery();
+        
+        // 尝试清理过期的已删除图片
+        setTimeout(() => {
+            cleanupOldDeletedImages();
+        }, 5000); // 延迟5秒执行，避免页面加载时的性能问题
     }
 }
 
@@ -673,12 +847,11 @@ function showSaveInfo() {
     const tooltipContent = document.querySelector('.tooltip-content');
     tooltipContent.innerHTML = `
         <h3>关于图片保存</h3>
-        <p>1. 图片生成后会立即上传到云存储以确保永久保存</p>
-        <p>2. 即使一小时后原始图片链接失效，您依然可以访问所有历史图片</p>
+        <p>1. 图片生成后会立即上传到云存储以确保长期</p>
+        <p>2. 您可以随时在"历史记录"中查看并下载之前生成的图片</p>
         <p>3. 图片URL和提示词会自动保存在浏览器的本地存储中</p>
         <p>4. 点击图片后，可以使用"下载"按钮将图片保存到您的设备上</p>
         <p>5. 下载的图片将保存在您的默认下载文件夹中</p>
-        <p>6. 您可以随时在"历史记录"中查看并下载之前生成的图片</p>
         ${isEdgeBrowser ? '<p style="color:#f0a020"><strong>注意:</strong> 检测到您正在使用Edge浏览器，已自动启用CORS代理以提高兼容性</p>' : ''}
         <button id="close-save-info" class="action-btn">我知道了</button>
     `;
