@@ -176,7 +176,7 @@
         }
         
         // 初始化 Worker URL，从配置获取
-        let WORKER_URL = AppConfig.get('worker.url', "https://ai-image-storage.sharanlillickclz66.workers.dev");
+        let WORKER_URL = AppConfig.get('worker.url');
         
         // 设置表单默认值
         document.getElementById('worker-url').value = WORKER_URL;
@@ -189,10 +189,10 @@
             TEST_ENDPOINTS = [
                 {
                     id: "test-connection",
-                    name: "API连接测试",
+                    name: "API连接与模型测试",
                     url: `${WORKER_URL}/api/test-connection`,
                     method: "GET",
-                    description: "测试与硅基流动API的连接状态"
+                    description: "测试与硅基流动API的连接状态并获取可用模型列表"
                 },
                 {
                     id: "worker-info",
@@ -208,13 +208,6 @@
                     method: "GET",
                     expectError: true,
                     description: "测试图片获取功能（此测试预期可能失败，因为测试图片可能不存在）"
-                },
-                {
-                    id: "models-test",
-                    name: "可用模型测试",
-                    url: `${WORKER_URL}/api/test-connection`,
-                    method: "GET",
-                    description: "测试可用的AI模型列表"
                 },
                 {
                     id: "custom-test",

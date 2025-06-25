@@ -44,12 +44,12 @@ let currentImageIndex = null;
 let apiAvailable = null; // null = 未测试, true = 可用, false = 不可用
 
 // 从配置中获取常用值
-const CORS_PROXY_URL = AppConfig.get('corsProxy.url');
-const WORKER_URL = AppConfig.get('worker.url');
-const DEFAULT_MODEL = AppConfig.get('api.defaultModel');
-const HISTORY_STORAGE_KEY = AppConfig.get('storage.historyKey');
-const MAX_HISTORY_ITEMS = AppConfig.get('storage.maxHistoryItems');
-const NOTIFICATION_DURATION = AppConfig.get('ui.notificationDuration');
+const CORS_PROXY_URL = AppConfig.getConfig('corsProxy.url');
+const WORKER_URL = AppConfig.getConfig('workerUrl');
+const DEFAULT_MODEL = AppConfig.getConfig('defaultModel');
+const HISTORY_STORAGE_KEY = AppConfig.getConfig('historyKey');
+const MAX_HISTORY_ITEMS = AppConfig.getConfig('maxHistoryItems');
+const NOTIFICATION_DURATION = AppConfig.getConfig('notificationDuration');
 
 // 初始化
 document.addEventListener('DOMContentLoaded', () => {
@@ -62,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     
     loadFromLocalStorage();
+    initSizeOptions();
+    initStyleOptions();
     setupEventListeners();
     testApiConnection();
     
@@ -90,6 +92,59 @@ document.addEventListener('DOMContentLoaded', () => {
     debugBtn.addEventListener('click', debugApiConnection);
     document.querySelector('header').appendChild(debugBtn);
 });
+
+// 初始化尺寸选项
+function initSizeOptions() {
+    // 从配置中获取尺寸选项
+    const sizes = AppConfig.getConfig('modelSizes', [
+        { value: "512x512", label: "中图 (512x512)" },
+        { value: "1024x1024", label: "大图 (1024x1024)" }
+    ]);
+    
+    // 清空现有选项
+    sizeSelect.innerHTML = '';
+    
+    // 添加新选项
+    sizes.forEach(size => {
+        const option = document.createElement('option');
+        option.value = size.value;
+        option.textContent = size.label;
+        sizeSelect.appendChild(option);
+    });
+    
+    // 设置默认选中值
+    const defaultSize = AppConfig.getConfig('defaultSize', '512x512');
+    sizeSelect.value = defaultSize;
+    
+    console.log('尺寸选项初始化完成');
+}
+
+// 初始化风格选项
+function initStyleOptions() {
+    // 从配置中获取风格选项
+    const styles = AppConfig.getConfig('modelStyles', [
+        {value: "default", label: "默认风格"},
+        {value: "anime", label: "动漫风格"},
+        {value: "photographic", label: "照片风格"}
+    ]);
+    
+    // 清空现有选项
+    styleSelect.innerHTML = '';
+    
+    // 添加新选项
+    styles.forEach(style => {
+        const option = document.createElement('option');
+        option.value = style.value;
+        option.textContent = style.label;
+        styleSelect.appendChild(option);
+    });
+    
+    // 设置默认选中值
+    const defaultStyle = AppConfig.getConfig('defaultStyle', 'default');
+    styleSelect.value = defaultStyle;
+    
+    console.log('风格选项初始化完成');
+}
 
 // 设置事件监听器
 function setupEventListeners() {
@@ -205,21 +260,17 @@ function updateApiStatus(status, text) {
 
 // 获取样式提示词
 function getStylePrompt(style, originalPrompt) {
-    // 不同风格对应的提示词增强
-    const stylePrompts = {
-        'realistic': `highly detailed, ultra realistic photograph of ${originalPrompt}, 8k, professional photography, sharp focus`,
-        'anime': `anime style, ${originalPrompt}, vibrant colors, studio ghibli, hayao miyazaki style`,
-        'watercolor': `watercolor painting of ${originalPrompt}, soft colors, flowing, artistic, hand-painted`,
-        '3d': `3D rendering of ${originalPrompt}, octane render, detailed textures, soft lighting, ray tracing`,
-        '3d-render': `3D rendering of ${originalPrompt}, octane render, detailed textures, soft lighting, ray tracing`
-    };
+    // 从配置中获取风格提示词映射
+    const stylePrompts = AppConfig.getConfig('stylePrompts', {});
     
-    // 如果有对应的风格增强提示词，使用它，否则简单添加风格描述
+    // 如果配置中有对应的风格提示词模板，使用它
     if (stylePrompts[style]) {
-        return stylePrompts[style];
-    } else {
-        return `${originalPrompt}, ${style} style`;
-    }
+        // 替换模板中的{prompt}占位符
+        return stylePrompts[style].replace('{prompt}', originalPrompt);
+    } 
+    
+    // 如果没有找到对应的风格提示词，简单添加风格描述
+    return `${originalPrompt}, ${style} style`;
 }
 
 // 处理生成图片
@@ -482,7 +533,17 @@ function openPreviewModal(imageData) {
 function formatStyle(style) {
     if (!style || style === 'default') return '默认';
     
-    const styleMap = {
+    // 从配置中获取风格映射
+    const styles = AppConfig.getConfig('modelStyles', []);
+    const styleMap = {};
+    
+    // 构建风格映射表
+    styles.forEach(s => {
+        styleMap[s.value] = s.label;
+    });
+    
+    // 兼容旧的硬编码风格
+    const fallbackStyleMap = {
         'anime': '动漫风格',
         'photographic': '照片风格',
         'digital-art': '数字艺术',
@@ -495,7 +556,8 @@ function formatStyle(style) {
         '3d': '3D渲染'
     };
     
-    return styleMap[style] || style;
+    // 优先使用配置中的风格名称，如果没有则使用兼容映射，最后直接返回原始值
+    return styleMap[style] || fallbackStyleMap[style] || style;
 }
 
 // 关闭预览模态框
@@ -911,6 +973,13 @@ async function debugApiConnection() {
         console.log('===== 快速API测试开始 =====');
         console.log('配置对象:', AppConfig.getAll());
         console.log('Worker URL:', WORKER_URL);
+        
+        // 检查配置项是否正确
+        console.log('===== 配置项检查 =====');
+        console.log('defaultModel:', AppConfig.getConfig('defaultModel'));
+        console.log('modelSizes:', AppConfig.getConfig('modelSizes'));
+        console.log('modelStyles:', AppConfig.getConfig('modelStyles'));
+        console.log('stylePrompts:', AppConfig.getConfig('stylePrompts'));
         
         try {
             // 测试API连接

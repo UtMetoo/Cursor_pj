@@ -57,7 +57,7 @@ window.AppConfig = (function() {
     // 图片生成设置
     imageGeneration: {
       // 默认模型
-      model: "dreamshaper-8",
+      model: "Kwai-Kolors/Kolors",
       
       // 默认尺寸
       defaultSizes: [
@@ -77,6 +77,20 @@ window.AppConfig = (function() {
         {value: "watercolor", label: "水彩风格"},
         {value: "3d-render", label: "3D渲染"}
       ],
+      
+      // 风格提示词映射
+      stylePrompts: {
+        'realistic': 'highly detailed, ultra realistic photograph of {prompt}, 8k, professional photography, sharp focus',
+        'anime': 'anime style, {prompt}, vibrant colors, studio ghibli, hayao miyazaki style',
+        'watercolor': 'watercolor painting of {prompt}, soft colors, flowing, artistic, hand-painted',
+        '3d': '3D rendering of {prompt}, octane render, detailed textures, soft lighting, ray tracing',
+        '3d-render': '3D rendering of {prompt}, octane render, detailed textures, soft lighting, ray tracing',
+        'digital-art': 'digital art, {prompt}, detailed, vibrant colors, professional illustration',
+        'comic-book': 'comic book style, {prompt}, bold lines, vibrant colors, dynamic composition',
+        'fantasy-art': 'fantasy art, {prompt}, magical, ethereal, detailed, professional illustration',
+        'oil-painting': 'oil painting of {prompt}, detailed brushwork, classical style, rich colors, museum quality',
+        'photographic': 'professional photograph of {prompt}, high resolution, sharp focus, detailed, realistic'
+      },
       
       // 提示语参数
       prompt: {
@@ -172,6 +186,29 @@ window.AppConfig = (function() {
   
   // 配置系统API
   return {
+    // 配置映射表 - 将常用配置项映射到标准路径
+    configMappings: {
+      // 模型相关
+      'defaultModel': 'imageGeneration.model',
+      'modelStyles': 'imageGeneration.styles',
+      'modelSizes': 'imageGeneration.sizes',
+      'defaultSize': 'imageGeneration.defaultSize',
+      'stylePrompts': 'imageGeneration.stylePrompts',
+      
+      // API相关
+      'workerUrl': 'worker.url',
+      'apiEndpoints': 'worker.endpoints',
+      
+      // 存储相关
+      'historyKey': 'storage.historyKey',
+      'maxHistoryItems': 'storage.maxHistoryItems',
+      
+      // UI相关
+      'notificationDuration': 'ui.notificationDuration',
+      'loadingTexts': 'ui.loadingTexts',
+      'colors': 'ui.colors'
+    },
+    
     // 获取配置项
     get: function(path, defaultValue) {
       try {
@@ -180,6 +217,12 @@ window.AppConfig = (function() {
         console.warn(`获取配置路径"${path}"失败:`, e);
         return defaultValue;
       }
+    },
+    
+    // 便捷获取配置项 - 通过映射表获取
+    getConfig: function(key, defaultValue) {
+      const mappedPath = this.configMappings[key] || key;
+      return this.get(mappedPath, defaultValue);
     },
     
     // 设置配置项
@@ -199,6 +242,12 @@ window.AppConfig = (function() {
       }
     },
     
+    // 便捷设置配置项 - 通过映射表设置
+    setConfig: function(key, value) {
+      const mappedPath = this.configMappings[key] || key;
+      return this.set(mappedPath, value);
+    },
+    
     // 获取全部配置
     getAll: function() {
       return JSON.parse(JSON.stringify(defaultConfig)); // 返回深拷贝，防止外部修改
@@ -209,7 +258,8 @@ window.AppConfig = (function() {
       const required = [
         'worker.url',
         'api.defaultModel',
-        'corsProxy.url'
+        'corsProxy.url',
+        'imageGeneration.model'
       ];
       
       const missing = required.filter(path => !this.get(path));
@@ -219,6 +269,41 @@ window.AppConfig = (function() {
         return false;
       }
       
+      // 检查配置一致性
+      this.syncConfigs();
+      
+      return true;
+    },
+    
+    // 同步相关配置项，确保一致性
+    syncConfigs: function() {
+      // 同步模型配置
+      const genModel = this.get('imageGeneration.model');
+      const apiModel = this.get('api.defaultModel');
+      
+      if (genModel !== apiModel) {
+        console.warn(`模型配置不一致: imageGeneration.model (${genModel}) 与 api.defaultModel (${apiModel}) 不同，正在同步...`);
+        this.set('api.defaultModel', genModel);
+      }
+      
+      // 检查Worker URL配置
+      const workerUrl = this.get('worker.url');
+      const apiWorkerUrl = this.get('api.workerUrl');
+      
+      if (workerUrl !== apiWorkerUrl) {
+        console.warn(`Worker URL配置不一致: worker.url (${workerUrl}) 与 api.workerUrl (${apiWorkerUrl}) 不同，正在同步...`);
+        this.set('api.workerUrl', workerUrl);
+      }
+      
+      // 确保存储配置一致
+      const uiMaxHistory = this.get('ui.maxHistoryItems');
+      const storageMaxHistory = this.get('storage.maxHistoryItems');
+      
+      if (uiMaxHistory !== storageMaxHistory) {
+        console.warn(`历史记录配置不一致: ui.maxHistoryItems (${uiMaxHistory}) 与 storage.maxHistoryItems (${storageMaxHistory}) 不同，正在同步...`);
+        this.set('ui.maxHistoryItems', storageMaxHistory);
+      }
+      
       return true;
     },
     
@@ -226,6 +311,11 @@ window.AppConfig = (function() {
     init: function() {
       this.validate();
       console.log('配置系统初始化完成');
+      
+      // 输出当前使用的模型和Worker URL
+      console.log(`当前使用的模型: ${this.getConfig('defaultModel')}`);
+      console.log(`当前Worker URL: ${this.getConfig('workerUrl')}`);
+      
       return this;
     }
   };
