@@ -1,25 +1,36 @@
-name = "ai-image-storage"
+name = "ai-worker"
 main = "r2-worker.js"
-compatibility_date = "2023-09-11"
+compatibility_date = "2025-06-25"
 
-# 配置R2绑定
-[[r2_buckets]]
-binding = "AI_IMAGES"
-bucket_name = "ai-generated-images"
-
-# 环境变量配置
+# 所有环境通用变量
 [vars]
-# 设置为Worker自身的URL，确保可以访问存储的图片
-TIMEZONE = "Asia/Shanghai"  # 设置时区为上海
-SILICON_FLOW_API_KEY = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy"  # 默认API密钥，部署时替换为实际密钥
+TIMEZONE = "Asia/Shanghai"
 
 # 开发环境配置
 [env.dev]
 workers_dev = true
-# 可以添加测试环境专用的变量
+route = "dev-ai.worker.nxlan.cn/*"
+vars.SILICON_FLOW_API_KEY = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy"   # 硅基流动测试API
+vars.TIMEZONE = "Asia/Shanghai"  
+
+[[env.dev.r2_buckets]]
+binding = "AI_IMAGES"
+bucket_name = "ai-generated-images-dev"
 
 # 生产环境配置
 [env.production]
 workers_dev = false
-# 生产环境专用的变量和设置
-route = "ai-images.nxlan.cn/image-upload"
+route = "ai.worker.nxlan.cn/*"
+custom_domain = "ai.worker.nxlan.cn"
+vars.TIMEZONE = "Asia/Shanghai" 
+
+[[env.production.r2_buckets]]
+binding = "AI_IMAGES"
+bucket_name = "ai-generated-images"
+
+
+# 部署生产环境：wrangler deploy --env production
+# 部署开发环境：wrangler deploy --env dev
+
+# 使用Cloudflare Secret管理生成环境API密钥
+# 运行: wrangler secret put SILICON_FLOW_API_KEY --env production

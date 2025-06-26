@@ -32,7 +32,7 @@ Worker是在Cloudflare边缘运行的JavaScript代码。
 
 1. 在Cloudflare控制面板中，点击左侧导航栏中的"Workers & Pages"
 2. 点击"创建应用程序"按钮，选择"创建Worker"
-3. 为Worker命名为"i-image-storage"（或您选择的名称）
+3. 为Worker命名为"ai-worker"（或您选择的名称）
 4. 点击"创建"按钮
 5. 在编辑界面，清除默认代码，并粘贴项目中的`r2-worker.js`文件内容
 6. 点击"部署"按钮
@@ -72,7 +72,7 @@ wrangler r2 bucket create ai-images
 wrangler deploy
 ```
 
-成功部署后，您将获得一个Worker URL，如`https://ai-image-storage.xxxx.workers.dev`。
+成功部署后，您将获得一个Worker URL，如`https://ai-worker.xxxx.workers.dev`。
 
 ## API连接测试
 
@@ -155,7 +155,7 @@ Worker作为前端和硅基流动API之间的代理，处理以下请求：
 修改前端JavaScript代码，使用Worker URL代替直接调用硅基流动API：
 
 ```javascript
-const WORKER_URL = "https://ai-image-storage.xxxx.workers.dev"; // 替换为实际Worker URL
+const WORKER_URL = "https://ai-worker.xxxx.workers.dev"; // 替换为实际Worker URL
 
 // 测试API连接
 async function testApiConnection() {
@@ -195,13 +195,13 @@ window.SETTINGS = {
     // ...其他API配置
     
     // Worker URL - 用于代理API请求和存储图片
-    workerUrl: "https://ai-image-storage.xxxx.workers.dev" // 替换为您的实际Worker URL
+    workerUrl: "https://ai-worker.xxxx.workers.dev" // 替换为您的实际Worker URL
   },
   
   // Worker配置
   worker: {
     // Cloudflare Worker URL
-    url: "https://ai-image-storage.xxxx.workers.dev", // 替换为您的实际Worker URL
+    url: "https://ai-worker.xxxx.workers.dev", // 替换为您的实际Worker URL
     
     // Worker API路径
     endpoints: {
@@ -224,7 +224,7 @@ window.SETTINGS = {
 if (typeof window.SETTINGS === 'undefined') {
     console.error('SETTINGS object not found. Initializing with default values.');
     window.SETTINGS = {
-        worker: { url: "https://ai-image-storage.xxxx.workers.dev" }, // 替换为您的实际Worker URL
+        worker: { url: "https://ai-worker.xxxx.workers.dev" }, // 替换为您的实际Worker URL
         corsProxy: { url: "https://corsproxy.io/?" }
     };
 }

@@ -26,13 +26,13 @@ window.AppConfig = (function() {
       
       // Worker URL - 用于代理API请求和存储图片
       // 必须替换为您部署的实际Worker URL
-      workerUrl: "https://ai.nxlan.cn"
+      workerUrl: "https://ai.worker.nxlan.cn"
     },
     
     // Worker配置
     worker: {
       // Cloudflare Worker URL
-      url: "https://ai.nxlan.cn", // 替换为您实际部署的Worker URL
+      url: "https://ai.worker.nxlan.cn", // 替换为您实际部署的Worker URL
       
       // Worker API路径
       endpoints: {
