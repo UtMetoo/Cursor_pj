@@ -1,5 +1,4 @@
 name = "ai-worker"
-main = "r2-worker.js"
 compatibility_date = "2025-06-25"
 
 # 所有环境通用变量
@@ -8,10 +7,17 @@ TIMEZONE = "Asia/Shanghai"
 
 # 开发环境配置
 [env.dev]
+main = "r2-worker.js"
 workers_dev = true
-route = "dev-ai.worker.nxlan.cn/*"
-vars.SILICON_FLOW_API_KEY = "sk-lsvigtdephufbkhxlhuhcpschibwzzegcbqxzzwvydaqwvmy"   # 硅基流动测试API
-vars.TIMEZONE = "Asia/Shanghai"  
+
+[env.dev.vars]
+TIMEZONE = "Asia/Shanghai"
+SILICON_FLOW_API_KEY = "sk-dev-xxxxx"
+DEBUG_MODE = "true"
+LOG_LEVEL = "debug"
+
+[env.dev.observability]
+logs.enabled = true
 
 [[env.dev.r2_buckets]]
 binding = "AI_IMAGES"
@@ -19,15 +25,22 @@ bucket_name = "ai-generated-images-dev"
 
 # 生产环境配置
 [env.production]
+main = "r2-worker.js"
 workers_dev = false
-route = "ai.worker.nxlan.cn/*"
-custom_domain = "ai.worker.nxlan.cn"
-vars.TIMEZONE = "Asia/Shanghai" 
+routes = [
+  { pattern = "ai.worker.nxlan.cn", custom_domain = true }
+]
+
+[env.production.vars]
+TIMEZONE = "Asia/Shanghai"
+LOG_LEVEL = "error"
+
+[env.production.observability]
+logs.enabled = true
 
 [[env.production.r2_buckets]]
 binding = "AI_IMAGES"
 bucket_name = "ai-generated-images"
-
 
 # 部署生产环境：wrangler deploy --env production
 # 部署开发环境：wrangler deploy --env dev
