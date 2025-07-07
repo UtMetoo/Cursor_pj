@@ -18,367 +18,558 @@ const LOGO_CONFIG = {
     shadowColor: 'rgba(0, 0, 0, 0.2)' // 阴影颜色
 };
 
-// DOM 元素
-const qrInput = document.getElementById('qr-input');
-const qrCodeElement = document.getElementById('qr-code');
-const fgColorInput = document.getElementById('fg-color');
-const bgColorInput = document.getElementById('bg-color');
-const sizeRange = document.getElementById('size-range');
-const radiusRange = document.getElementById('radius-range');
-const logoInput = document.getElementById('logo-input');
-const removeLogoBtn = document.getElementById('remove-logo');
-const resetBtn = document.getElementById('reset-btn');
-const copyBtn = document.getElementById('copy-btn');
-const downloadBtn = document.getElementById('download-btn');
-
-// 二维码配置
-let qrConfig = {
-    text: ' ',
-    width: 300,
-    height: 300,
-    colorDark: '#000000',
-    colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.H,
-    logo: null
+// 当前二维码选项
+const qrOptions = {
+    size: 300,
+    foreground: '#000000',
+    background: '#FFFFFF',
+    cornerRadius: 0,
+    logo: null,
+    errorCorrectionLevel: 'H',
+    margin: 1
 };
 
-// 初始化QR码实例
-let qrCode = null;
+// 当前选中的二维码类型
+let currentType = 'text';
+
+// 二维码生成器实例
+let generators = {
+    text: new ZXingBaseGenerator({
+        width: qrOptions.size,
+        height: qrOptions.size,
+        errorCorrectionLevel: qrOptions.errorCorrectionLevel,
+        margin: qrOptions.margin,
+        logo: qrOptions.logo
+    }),
+    wifi: new ZXingWifiGenerator({
+        width: qrOptions.size,
+        height: qrOptions.size,
+        errorCorrectionLevel: qrOptions.errorCorrectionLevel,
+        margin: qrOptions.margin,
+        logo: qrOptions.logo
+    }),
+    url: new ZXingBaseGenerator({
+        width: qrOptions.size,
+        height: qrOptions.size,
+        errorCorrectionLevel: qrOptions.errorCorrectionLevel,
+        margin: qrOptions.margin,
+        logo: qrOptions.logo
+    })
+};
+
+// DOM 元素
+const elements = {
+    typeButtons: null,
+    sections: {
+        text: null,
+        wifi: null,
+        url: null
+    },
+    inputs: {
+        text: null,
+        wifiSsid: null,
+        wifiPassword: null,
+        wifiEncryption: null,
+        wifiHidden: null,
+        url: null
+    },
+    preview: null,
+    copyBtn: null,
+    downloadBtn: null,
+    showPasswordBtn: null,
+    logoFile: null,
+    removeLogoBtn: null,
+    styleInputs: {
+        size: null,
+        foreground: null,
+        background: null,
+        cornerRadius: null
+    }
+};
+
+// 初始化函数
+function init() {
+    // 等待 DOM 加载完成
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', initializeApp);
+    } else {
+        initializeApp();
+    }
+}
+
+// 应用初始化
+function initializeApp() {
+    try {
+        // 初始化 DOM 元素
+        initializeElements();
+        
+        // 设置事件监听器
+        setupEventListeners();
+        
+        // 初始显示文本二维码输入区
+        switchType('text');
+        
+        // 初始生成空二维码
+        updateQRCode();
+    } catch (error) {
+        console.error('初始化应用时出错:', error);
+        showError('应用初始化失败，请刷新页面重试');
+    }
+}
+
+// 初始化 DOM 元素
+function initializeElements() {
+    elements.typeButtons = document.querySelectorAll('.type-btn');
+    elements.sections.text = document.getElementById('text-input-section');
+    elements.sections.wifi = document.getElementById('wifi-input-section');
+    elements.sections.url = document.getElementById('url-input-section');
+    elements.inputs.text = document.getElementById('text-input');
+    elements.inputs.wifiSsid = document.getElementById('wifi-ssid');
+    elements.inputs.wifiPassword = document.getElementById('wifi-password');
+    elements.inputs.wifiEncryption = document.getElementById('wifi-encryption');
+    elements.inputs.wifiHidden = document.getElementById('wifi-hidden');
+    elements.inputs.url = document.getElementById('url-input');
+    elements.preview = document.getElementById('qr-preview');
+    elements.copyBtn = document.getElementById('copy-btn');
+    elements.downloadBtn = document.getElementById('download-btn');
+    elements.showPasswordBtn = document.querySelector('.show-password-btn');
+    elements.logoFile = document.getElementById('logo-file');
+    elements.removeLogoBtn = document.querySelector('.remove-logo-btn');
+    elements.styleInputs.size = document.getElementById('qr-size');
+    elements.styleInputs.foreground = document.getElementById('foreground-color');
+    elements.styleInputs.background = document.getElementById('background-color');
+    elements.styleInputs.cornerRadius = document.getElementById('corner-radius');
+
+    // 验证所有必需的元素都存在
+    for (const [key, value] of Object.entries(elements)) {
+        if (value === null || (typeof value === 'object' && Object.values(value).includes(null))) {
+            throw new Error(`找不到必需的DOM元素: ${key}`);
+        }
+    }
+}
+
+// 设置事件监听器
+function setupEventListeners() {
+    // 类型切换按钮
+    elements.typeButtons.forEach(btn => {
+        btn.addEventListener('click', () => switchType(btn.dataset.type));
+    });
+
+    // 文本输入
+    elements.inputs.text.addEventListener('input', debounce(updateQRCode, 300));
+
+    // WiFi输入
+    elements.inputs.wifiSsid.addEventListener('input', debounce(updateQRCode, 300));
+    elements.inputs.wifiPassword.addEventListener('input', debounce(updateQRCode, 300));
+    elements.inputs.wifiEncryption.addEventListener('change', updateQRCode);
+    elements.inputs.wifiHidden.addEventListener('change', updateQRCode);
+
+    // URL输入
+    elements.inputs.url.addEventListener('input', debounce(updateQRCode, 300));
+
+    // 样式设置
+    Object.values(elements.styleInputs).forEach(input => {
+        input.addEventListener('input', handleStyleChange);
+    });
+
+    // 显示/隐藏密码
+    elements.showPasswordBtn.addEventListener('click', togglePasswordVisibility);
+
+    // Logo上传
+    elements.logoFile.addEventListener('change', handleLogoUpload);
+    elements.removeLogoBtn.addEventListener('click', removeLogo);
+
+    // 复制和下载按钮
+    elements.copyBtn.addEventListener('click', copyQRCode);
+    elements.downloadBtn.addEventListener('click', downloadQRCode);
+}
+
+// 切换二维码类型
+function switchType(type) {
+    currentType = type;
+
+    // 更新按钮状态
+    elements.typeButtons.forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.type === type);
+    });
+
+    // 隐藏所有输入区域
+    Object.values(elements.sections).forEach(section => {
+        section.classList.add('hidden');
+    });
+
+    // 显示选中的输入区域
+    elements.sections[type].classList.remove('hidden');
+
+    // 更新二维码
+    updateQRCode();
+}
 
 // 更新二维码
-const updateQRCode = debounce(() => {
-    // 更新配置
-    qrConfig.text = qrInput.value || ' ';
-    qrConfig.width = parseInt(sizeRange.value);
-    qrConfig.height = parseInt(sizeRange.value);
-    qrConfig.colorDark = fgColorInput.value;
-    qrConfig.colorLight = bgColorInput.value;
-
-    // 清除旧的二维码
-    qrCodeElement.innerHTML = '';
-    
-    // 创建新的二维码
-    qrCode = new QRCode(qrCodeElement, {
-        text: qrConfig.text,
-        width: qrConfig.width,
-        height: qrConfig.height,
-        colorDark: qrConfig.colorDark,
-        colorLight: qrConfig.colorLight,
-        correctLevel: QRCode.CorrectLevel.H
-    });
-
-    // 等待二维码生成完成
-    setTimeout(() => {
-        // 应用圆角
-        const radius = parseInt(radiusRange.value);
-        const qrImage = qrCodeElement.querySelector('img');
-        if (qrImage) {
-            qrImage.style.borderRadius = `${radius}%`;
+async function updateQRCode() {
+    try {
+        let content = '';
+        let svgElement = null;
+        
+        // 检查ZXing库是否正确加载
+        if (typeof ZXing === 'undefined') {
+            throw new Error('ZXing库未正确加载，请刷新页面重试');
+        }
+        
+        // 获取输入内容
+        switch (currentType) {
+            case 'text':
+                content = elements.inputs.text.value.trim();
+                if (content) {
+                    console.log('生成文本二维码:', content);
+                    // 使用ZXingBaseGenerator的generate方法
+                    svgElement = await generators.text.generate(content);
+                }
+                break;
             
-            // 如果有Logo，添加Logo
-            if (qrConfig.logo) {
-                addLogoToQR();
+            case 'wifi':
+                const ssid = elements.inputs.wifiSsid.value.trim();
+                const password = elements.inputs.wifiPassword.value;
+                const encryption = elements.inputs.wifiEncryption.value;
+                const hidden = elements.inputs.wifiHidden.checked;
+                
+                if (ssid) {
+                    console.log('生成WiFi二维码:', { ssid, encryption, hidden });
+                    svgElement = await generators.wifi.generateWifiQR(ssid, password, encryption, hidden);
+                }
+                break;
+            
+            case 'url':
+                content = elements.inputs.url.value.trim();
+                if (content) {
+                    // 标准化URL
+                    if (!content.startsWith('http://') && !content.startsWith('https://')) {
+                        content = `https://${content}`;
+                    }
+                    console.log('生成URL二维码:', content);
+                    // 使用ZXingBaseGenerator的generate方法
+                    svgElement = await generators.url.generate(content);
+                }
+                break;
+        }
+
+        // 清空预览区域
+        elements.preview.innerHTML = '';
+        
+        if (svgElement) {
+            console.log('二维码SVG元素生成成功，尺寸:', {
+                width: qrOptions.size,
+                height: qrOptions.size
+            });
+            
+            // 设置SVG样式
+            svgElement.style.width = '100%';
+            svgElement.style.height = '100%';
+            
+            // 确保SVG有正确的viewBox
+            if (!svgElement.getAttribute('viewBox')) {
+                const viewBox = `0 0 ${qrOptions.size} ${qrOptions.size}`;
+                svgElement.setAttribute('viewBox', viewBox);
+                console.log('设置SVG viewBox:', viewBox);
             }
-        }
-    }, 100);
-}, 300);
-
-// 添加Logo到二维码
-function addLogoToQR() {
-    const qrImage = qrCodeElement.querySelector('img');
-    if (!qrImage || !qrConfig.logo) return;
-    
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
-    
-    // 设置canvas尺寸
-    canvas.width = qrConfig.width;
-    canvas.height = qrConfig.height;
-    
-    // 创建临时canvas用于Logo处理
-    const tempCanvas = document.createElement('canvas');
-    const tempCtx = tempCanvas.getContext('2d');
-    
-    // 计算Logo尺寸和位置
-    const logoSize = Math.round(qrConfig.width * LOGO_CONFIG.size);
-    const logoX = (canvas.width - logoSize) / 2;
-    const logoY = (canvas.height - logoSize) / 2;
-    const logoPadding = Math.round(logoSize * LOGO_CONFIG.margin);
-    const logoRadius = Math.round(logoSize * LOGO_CONFIG.borderRadius);
-    
-    // 绘制二维码
-    const qrPromise = new Promise((resolve) => {
-        if (qrImage.complete) {
-            ctx.fillStyle = qrConfig.colorLight;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.drawImage(qrImage, 0, 0, canvas.width, canvas.height);
-            resolve();
+            
+            // 验证SVG属性
+            console.log('SVG属性:', {
+                width: svgElement.style.width,
+                height: svgElement.style.height,
+                viewBox: svgElement.getAttribute('viewBox')
+            });
+            
+            // 添加SVG到预览区
+            elements.preview.innerHTML = '';
+            elements.preview.appendChild(svgElement);
+            console.log('二维码已添加到预览区');
+            
+            // 验证预览区尺寸
+            console.log('预览区尺寸:', {
+                width: elements.preview.offsetWidth,
+                height: elements.preview.offsetHeight,
+                clientWidth: elements.preview.clientWidth,
+                clientHeight: elements.preview.clientHeight
+            });
         } else {
-            qrImage.onload = () => {
-                ctx.fillStyle = qrConfig.colorLight;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.drawImage(qrImage, 0, 0, canvas.width, canvas.height);
-                resolve();
-            };
+            console.log('没有内容需要生成二维码');
+            elements.preview.innerHTML = '<p class="empty-state">请输入内容生成二维码</p>';
         }
-    });
+
+    } catch (error) {
+        console.error('生成二维码时出错:', error);
+        elements.preview.innerHTML = `<p class="error">${error.message || '生成二维码失败'}</p>`;
+        showToast(error.message || '生成二维码失败', 'error');
+    }
+}
+
+// 处理样式变更
+async function handleStyleChange(event) {
+    const input = event.target;
+    const value = input.value;
     
-    // 处理和绘制Logo
-    const logoPromise = new Promise((resolve) => {
-        const logoImg = new Image();
-        logoImg.crossOrigin = 'Anonymous'; // 处理跨域图片
-        logoImg.src = qrConfig.logo;
+    // 更新显示值
+    if (input.id === 'qr-size') {
+        document.querySelector('.size-value').textContent = `${value}px`;
+        qrOptions.size = parseInt(value);
         
-        logoImg.onload = () => {
-            // 设置临时canvas尺寸
-            tempCanvas.width = logoSize + (logoPadding * 2);
-            tempCanvas.height = logoSize + (logoPadding * 2);
-            
-            // 绘制Logo背景（带圆角的白色背景）
-            tempCtx.save();
-            tempCtx.beginPath();
-            tempCtx.roundRect(0, 0, tempCanvas.width, tempCanvas.height, logoRadius);
-            tempCtx.fillStyle = LOGO_CONFIG.borderColor;
-            tempCtx.shadowColor = LOGO_CONFIG.shadowColor;
-            tempCtx.shadowBlur = LOGO_CONFIG.shadowBlur;
-            tempCtx.fill();
-            tempCtx.restore();
-            
-            // 绘制Logo图片（带圆角）
-            tempCtx.save();
-            tempCtx.beginPath();
-            tempCtx.roundRect(logoPadding, logoPadding, logoSize, logoSize, logoRadius * 0.8);
-            tempCtx.clip();
-            tempCtx.drawImage(logoImg, logoPadding, logoPadding, logoSize, logoSize);
-            tempCtx.restore();
-            
-            // 将处理后的Logo绘制到主canvas
-            ctx.drawImage(
-                tempCanvas,
-                logoX - logoPadding,
-                logoY - logoPadding,
-                tempCanvas.width,
-                tempCanvas.height
-            );
-            
-            resolve();
-        };
-        
-        logoImg.onerror = () => {
-            console.error('Logo加载失败');
-            resolve(); // 即使失败也resolve，以免阻塞二维码生成
-        };
-    });
-    
-    // 等待所有绘制完成后更新二维码图片
-    Promise.all([qrPromise, logoPromise])
-        .then(() => {
-            try {
-                qrImage.src = canvas.toDataURL('image/png');
-            } catch (error) {
-                console.error('二维码生成失败:', error);
+        // 更新生成器的宽高
+        Object.values(generators).forEach(generator => {
+            if (generator.options) {
+                generator.options.width = qrOptions.size;
+                generator.options.height = qrOptions.size;
             }
         });
-}
-
-// 图片背景处理函数
-function processLogoImage(originalImage, qrSize) {
-    return new Promise((resolve) => {
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
+    } else if (input.id === 'corner-radius') {
+        document.querySelector('.radius-value').textContent = `${value}px`;
+        qrOptions.cornerRadius = parseInt(value);
         
-        // 使用高分辨率canvas以提高清晰度
-        const scale = window.devicePixelRatio || 2;
-        
-        // 计算Logo尺寸为二维码尺寸的25%
-        const targetLogoSize = Math.round(qrSize * 0.25);
-        
-        // 计算合适的尺寸（保持宽高比）
-        let width = originalImage.width;
-        let height = originalImage.height;
-        
-        // 根据最长边缩放到目标尺寸
-        if (width > height) {
-            width = targetLogoSize;
-            height = Math.round((height * targetLogoSize) / originalImage.width);
-        } else {
-            height = targetLogoSize;
-            width = Math.round((width * targetLogoSize) / originalImage.height);
-        }
-        
-        // 设置高分辨率canvas尺寸
-        canvas.width = width * scale;
-        canvas.height = height * scale;
-        
-        // 配置canvas以获得最佳质量
-        ctx.scale(scale, scale);
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = 'high';
-        
-        // 绘制图片
-        ctx.drawImage(originalImage, 0, 0, width, height);
-        
-        // 获取图片数据
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
-        
-        // 调整透明度和对比度
-        for (let i = 0; i < data.length; i += 4) {
-            // 使用更精确的亮度计算公式
-            const brightness = (data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
-            
-            // 增加对比度
-            const contrast = 1.3; // 略微增加对比度以提高清晰度
-            const factor = (contrast * (brightness - 128) + 128) / brightness;
-            
-            // 使用更精确的颜色调整
-            data[i] = Math.min(255, Math.max(0, Math.round(data[i] * factor)));     // R
-            data[i + 1] = Math.min(255, Math.max(0, Math.round(data[i + 1] * factor))); // G
-            data[i + 2] = Math.min(255, Math.max(0, Math.round(data[i + 2] * factor))); // B
-            
-            // 调整透明度
-            if (brightness > 240) {
-                data[i + 3] = 0; // 完全透明
-            } else {
-                // 使用更平滑的透明度过渡
-                const alpha = Math.max(0, Math.min(255, 
-                    data[i + 3] * (1 - Math.pow(brightness / 255, 1.5) * 0.5)
-                ));
-                data[i + 3] = Math.round(alpha);
+        // 更新生成器的圆角
+        Object.values(generators).forEach(generator => {
+            if (generator.options) {
+                generator.options.cornerRadius = qrOptions.cornerRadius;
             }
-        }
+        });
+    } else if (input.id === 'foreground-color') {
+        qrOptions.foreground = value;
         
-        // 将处理后的数据放回canvas
-        ctx.putImageData(imageData, 0, 0);
+        // 更新生成器的前景色
+        Object.values(generators).forEach(generator => {
+            if (generator.options) {
+                generator.options.foreground = qrOptions.foreground;
+            }
+        });
+    } else if (input.id === 'background-color') {
+        qrOptions.background = value;
         
-        // 创建新图片，使用高质量PNG格式
-        const processedImage = new Image();
-        processedImage.onload = () => resolve(processedImage);
-        processedImage.src = canvas.toDataURL('image/png', 1.0);
-    });
+        // 更新生成器的背景色
+        Object.values(generators).forEach(generator => {
+            if (generator.options) {
+                generator.options.background = qrOptions.background;
+            }
+        });
+    }
+
+    // 重新生成二维码
+    await updateQRCode();
 }
 
-// 修改Logo上传处理
-logoInput.addEventListener('change', (e) => {
-    const file = e.target.files[0];
-    if (file) {
+// 处理Logo上传
+async function handleLogoUpload(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+
+    try {
         // 验证文件类型
         if (!file.type.startsWith('image/')) {
-            alert('请上传图片文件');
-            return;
+            throw new Error('请选择图片文件');
         }
+
+        // 读取文件
+        const logoUrl = await new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+        });
+
+        // 更新选项
+        qrOptions.logo = logoUrl;
+
+        // 更新所有生成器的Logo选项
+        Object.values(generators).forEach(generator => {
+            if (generator.options) {
+                generator.options.logo = logoUrl;
+            }
+        });
+
+        // 显示移除按钮
+        elements.removeLogoBtn.classList.remove('hidden');
+
+        // 重新生成二维码
+        await updateQRCode();
         
-        // 验证文件大小（最大2MB）
-        if (file.size > 2 * 1024 * 1024) {
-            alert('图片大小不能超过2MB');
-            return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            // 预检查图片
-            const img = new Image();
-            img.onload = async () => {
-                // 检查图片尺寸
-                if (img.width < 100 || img.height < 100) {
-                    alert('图片尺寸太小，请上传至少100x100像素的图片');
-                    return;
-                }
-                
-                try {
-                    // 处理图片
-                    const processedImage = await processLogoImage(img, qrConfig.width);
-                    qrConfig.logo = processedImage.src;
-                    removeLogoBtn.hidden = false;
-                    updateQRCode();
-                } catch (error) {
-                    console.error('图片处理失败:', error);
-                    alert('图片处理失败，请尝试使用其他图片');
-                }
-            };
-            img.src = e.target.result;
-        };
-        reader.onerror = () => {
-            alert('图片读取失败，请重试');
-        };
-        reader.readAsDataURL(file);
+        showToast('Logo添加成功');
+    } catch (error) {
+        console.error('处理Logo上传时出错:', error);
+        showError('Logo上传失败: ' + error.message);
+        // 清空文件输入
+        event.target.value = '';
     }
-});
+}
 
 // 移除Logo
-removeLogoBtn.addEventListener('click', () => {
-    qrConfig.logo = null;
-    logoInput.value = '';
-    removeLogoBtn.hidden = true;
-    updateQRCode();
-});
-
-// 重置功能
-resetBtn.addEventListener('click', () => {
-    qrInput.value = '';
-    fgColorInput.value = '#000000';
-    bgColorInput.value = '#ffffff';
-    sizeRange.value = '300';
-    radiusRange.value = '0';
-    sizeRange.nextElementSibling.textContent = '300px';
-    radiusRange.nextElementSibling.textContent = '0%';
-    qrConfig.logo = null;
-    logoInput.value = '';
-    removeLogoBtn.hidden = true;
-    updateQRCode();
-});
-
-// 复制二维码
-copyBtn.addEventListener('click', async () => {
+async function removeLogo() {
     try {
-        const qrImage = qrCodeElement.querySelector('img');
-        if (!qrImage) return;
+        // 更新选项
+        qrOptions.logo = null;
+
+        // 更新所有生成器的Logo选项
+        Object.values(generators).forEach(generator => {
+            if (generator.options) {
+                generator.options.logo = null;
+            }
+        });
+
+        // 隐藏移除按钮
+        elements.removeLogoBtn.classList.add('hidden');
+
+        // 清空文件输入
+        elements.logoFile.value = '';
+
+        // 重新生成二维码
+        await updateQRCode();
         
-        const response = await fetch(qrImage.src);
-        const blob = await response.blob();
-        await navigator.clipboard.write([
-            new ClipboardItem({
-                [blob.type]: blob
-            })
-        ]);
-        
-        copyBtn.textContent = '已复制！';
-        setTimeout(() => {
-            copyBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" width="24" height="24">
-                    <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                </svg>
-                复制二维码
-            `;
-        }, 2000);
-    } catch (err) {
-        console.error('复制失败:', err);
+        showToast('Logo已移除');
+    } catch (error) {
+        console.error('移除Logo时出错:', error);
+        showError('移除Logo失败: ' + error.message);
     }
-});
+}
+
+// 切换密码可见性
+function togglePasswordVisibility() {
+    const passwordInput = elements.inputs.wifiPassword;
+    const type = passwordInput.type === 'password' ? 'text' : 'password';
+    passwordInput.type = type;
+    elements.showPasswordBtn.textContent = type === 'password' ? '👁️' : '🔒';
+}
 
 // 下载二维码
-downloadBtn.addEventListener('click', () => {
-    const qrImage = qrCodeElement.querySelector('img');
-    if (!qrImage) return;
-    
-    const link = document.createElement('a');
-    link.download = '二维码.png';
-    link.href = qrImage.src;
-    link.click();
-});
+async function downloadQRCode() {
+    try {
+        const svgElement = elements.preview.querySelector('svg');
+        if (!svgElement) {
+            throw new Error('没有可下载的二维码');
+        }
 
-// 事件监听器
-qrInput.addEventListener('input', updateQRCode);
-fgColorInput.addEventListener('input', updateQRCode);
-bgColorInput.addEventListener('input', updateQRCode);
-sizeRange.addEventListener('input', (e) => {
-    e.target.nextElementSibling.textContent = `${e.target.value}px`;
-    updateQRCode();
-});
-radiusRange.addEventListener('input', (e) => {
-    e.target.nextElementSibling.textContent = `${e.target.value}%`;
-    updateQRCode();
-});
+        // 创建Canvas元素
+        const canvas = document.createElement('canvas');
+        const size = qrOptions.size;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
 
-// 初始化
-updateQRCode(); 
+        // 设置背景色
+        ctx.fillStyle = qrOptions.background;
+        ctx.fillRect(0, 0, size, size);
+
+        // 将SVG转换为图片
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        // 创建图片对象
+        const img = new Image();
+        img.src = svgUrl;
+
+        // 等待图片加载完成
+        await new Promise((resolve, reject) => {
+            img.onload = resolve;
+            img.onerror = reject;
+        });
+
+        // 绘制到Canvas
+        ctx.drawImage(img, 0, 0, size, size);
+
+        // 释放URL
+        URL.revokeObjectURL(svgUrl);
+
+        // 转换为PNG并下载
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = `qrcode-${Date.now()}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+
+        showToast('二维码已下载');
+    } catch (error) {
+        console.error('下载二维码时出错:', error);
+        showError('下载失败: ' + error.message);
+    }
+}
+
+// 复制二维码
+async function copyQRCode() {
+    try {
+        const svgElement = elements.preview.querySelector('svg');
+        if (!svgElement) {
+            throw new Error('没有可复制的二维码');
+        }
+
+        // 创建Canvas用于复制
+        const canvas = document.createElement('canvas');
+        const size = qrOptions.size;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext('2d');
+
+        // 设置背景色
+        ctx.fillStyle = qrOptions.background;
+        ctx.fillRect(0, 0, size, size);
+
+        // 将SVG转换为图片
+        const svgData = new XMLSerializer().serializeToString(svgElement);
+        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+        const svgUrl = URL.createObjectURL(svgBlob);
+
+        // 创建图片对象
+        const img = new Image();
+        img.src = svgUrl;
+
+        // 等待图片加载完成并复制
+        await new Promise((resolve, reject) => {
+            img.onload = async () => {
+                try {
+                    ctx.drawImage(img, 0, 0, size, size);
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve));
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': blob })
+                    ]);
+                    resolve();
+                } catch (error) {
+                    reject(error);
+                } finally {
+                    URL.revokeObjectURL(svgUrl);
+                }
+            };
+            img.onerror = reject;
+        });
+
+        showToast('二维码已复制到剪贴板');
+    } catch (error) {
+        console.error('复制二维码时出错:', error);
+        showError('复制失败: ' + error.message);
+    }
+}
+
+// 显示提示消息
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.classList.add('show');
+        setTimeout(() => {
+            toast.classList.remove('show');
+            setTimeout(() => toast.remove(), 300);
+        }, 2000);
+    }, 100);
+}
+
+// 显示错误信息
+function showError(message) {
+    if (elements.preview) {
+        elements.preview.innerHTML = `<p class="error">${message}</p>`;
+    } else {
+        console.error(message);
+    }
+}
+
+// 启动应用
+init(); 

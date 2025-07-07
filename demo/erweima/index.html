@@ -4,114 +4,128 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>优雅二维码生成器</title>
-    <!-- 引入字体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
     <div class="container">
         <header>
             <h1>优雅二维码生成器</h1>
-            <p class="subtitle">轻松创建专业的二维码</p>
+            <p class="subtitle">简单但功能强大的二维码生成工具</p>
         </header>
 
         <main>
-            <div class="input-section">
+            <div class="qr-type-selector">
+                <button class="type-btn active" data-type="text">文本二维码</button>
+                <button class="type-btn" data-type="wifi">WiFi二维码</button>
+                <button class="type-btn" data-type="url">网址二维码</button>
+            </div>
+
+            <!-- 文本二维码输入区 -->
+            <div class="input-section" id="text-input-section">
                 <div class="input-group">
-                    <input type="text" id="qr-input" placeholder="输入链接或文字..." autocomplete="off">
-                    <button id="reset-btn" class="icon-btn" title="重置">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M12 5V2L8 6l4 4V7c3.31 0 6 2.69 6 6 0 2.97-2.17 5.43-5 5.91v2.02c3.95-.49 7-3.85 7-7.93 0-4.42-3.58-8-8-8zm-6 8c0-1.65.67-3.15 1.76-4.24L6.34 7.34C4.9 8.79 4 10.79 4 13c0 4.08 3.05 7.44 7 7.93v-2.02c-2.83-.48-5-2.94-5-5.91z"/>
-                        </svg>
-                    </button>
+                    <label for="text-input">输入文本内容</label>
+                    <textarea id="text-input" placeholder="请输入要生成二维码的文本内容..."></textarea>
                 </div>
             </div>
 
-            <div class="qr-container">
-                <div class="qr-preview">
-                    <div id="qr-code"></div>
+            <!-- WiFi二维码输入区 -->
+            <div class="input-section hidden" id="wifi-input-section">
+                <div class="input-group">
+                    <label for="wifi-ssid">WiFi名称 (SSID)</label>
+                    <input type="text" id="wifi-ssid" placeholder="请输入WiFi名称">
                 </div>
-                
-                <div class="customization-panel">
-                    <div class="panel-section">
-                        <h3>颜色设置</h3>
-                        <div class="color-inputs">
-                            <div class="color-group">
-                                <label for="fg-color">前景色</label>
-                                <input type="color" id="fg-color" value="#000000">
-                            </div>
-                            <div class="color-group">
-                                <label for="bg-color">背景色</label>
-                                <input type="color" id="bg-color" value="#ffffff">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="panel-section">
-                        <h3>样式设置</h3>
-                        <div class="style-inputs">
-                            <div class="range-group">
-                                <label for="size-range">尺寸</label>
-                                <input type="range" id="size-range" min="200" max="500" value="300" step="10">
-                                <span class="range-value">300px</span>
-                            </div>
-                            <div class="range-group">
-                                <label for="radius-range">圆角</label>
-                                <input type="range" id="radius-range" min="0" max="50" value="0" step="5">
-                                <span class="range-value">0%</span>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="panel-section">
-                        <h3>Logo设置</h3>
-                        <div class="logo-upload">
-                            <input type="file" id="logo-input" accept="image/*" hidden>
-                            <label for="logo-input" class="upload-btn">
-                                <svg viewBox="0 0 24 24" width="24" height="24">
-                                    <path fill="currentColor" d="M19 7v2.99s-1.99.01-2 0V7h-3s.01-1.99 0-2h3V2h2v3h3v2h-3zm-3 4V8h-3V5H5c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2v-8h-3zM5 19l3-4 2 3 3-4 4 5H5z"/>
-                                </svg>
-                                <span>上传Logo</span>
-                            </label>
-                            <button id="remove-logo" class="text-btn" hidden>移除Logo</button>
-                        </div>
-                    </div>
+                <div class="input-group">
+                    <label for="wifi-password">WiFi密码</label>
+                    <input type="password" id="wifi-password" placeholder="请输入WiFi密码">
+                    <button class="show-password-btn" type="button">👁️</button>
+                </div>
+                <div class="input-group">
+                    <label for="wifi-encryption">加密类型</label>
+                    <select id="wifi-encryption">
+                        <option value="WPA2">WPA2</option>
+                        <option value="WPA">WPA</option>
+                        <option value="WEP">WEP</option>
+                        <option value="nopass">无密码</option>
+                    </select>
+                </div>
+                <div class="input-group checkbox">
+                    <input type="checkbox" id="wifi-hidden">
+                    <label for="wifi-hidden">隐藏网络</label>
                 </div>
             </div>
 
-            <div class="action-buttons">
-                <button id="copy-btn" class="primary-btn">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/>
-                    </svg>
-                    复制二维码
-                </button>
-                <button id="download-btn" class="primary-btn">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
-                    </svg>
-                    下载PNG
-                </button>
+            <!-- URL二维码输入区 -->
+            <div class="input-section hidden" id="url-input-section">
+                <div class="input-group">
+                    <label for="url-input">网址</label>
+                    <input type="url" id="url-input" placeholder="请输入网址 (例如: https://www.example.com)">
+                </div>
+            </div>
+
+            <!-- 样式设置区 -->
+            <div class="style-section">
+                <h3>样式设置</h3>
+                <div class="style-grid">
+                    <div class="input-group">
+                        <label for="qr-size">二维码大小</label>
+                        <input type="range" id="qr-size" min="200" max="500" value="300" step="10">
+                        <span class="size-value">300px</span>
+                    </div>
+                    <div class="input-group">
+                        <label for="foreground-color">前景色</label>
+                        <input type="color" id="foreground-color" value="#000000">
+                    </div>
+                    <div class="input-group">
+                        <label for="background-color">背景色</label>
+                        <input type="color" id="background-color" value="#FFFFFF">
+                    </div>
+                    <div class="input-group">
+                        <label for="corner-radius">圆角效果</label>
+                        <input type="range" id="corner-radius" min="0" max="50" value="0">
+                        <span class="radius-value">0px</span>
+                    </div>
+                </div>
+                <div class="input-group logo-upload">
+                    <label for="logo-file">添加Logo</label>
+                    <input type="file" id="logo-file" accept="image/*">
+                    <button class="remove-logo-btn hidden">移除Logo</button>
+                </div>
+            </div>
+
+            <!-- 预览区 -->
+            <div class="preview-section">
+                <div id="qr-preview"></div>
+                <div class="action-buttons">
+                    <button id="copy-btn" class="primary-btn">复制二维码</button>
+                    <button id="download-btn" class="primary-btn">下载PNG</button>
+                </div>
             </div>
         </main>
 
         <footer>
-            <p class="tips">提示：上传Logo可以增加品牌辨识度，建议使用透明背景的图片</p>
+            <p>由 Cursor 提供技术支持</p>
         </footer>
     </div>
 
-    <!-- 引入QRCode.js库 -->
-    <script src="https://cdn.jsdelivr.net/gh/davidshimjs/qrcodejs/qrcode.min.js"></script>
-    <script>
-        // 如果CDN加载失败，使用本地备份
-        window.addEventListener('error', function(e) {
-            if (e.target.src && e.target.src.includes('qrcode.min.js')) {
-                const script = document.createElement('script');
-                script.src = 'lib/qrcode.min.js';
-                document.body.appendChild(script);
-            }
-        }, true);
+    <!-- 按顺序加载所有依赖 -->
+    <!-- 1. 外部库 -->
+    <script src="lib/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" 
+            onerror="console.error('ZXing库加载失败'); alert('二维码库加载失败，请检查网络连接');">
     </script>
+    
+    <!-- 2. Logo管理器 -->
+    <script src="src/generators/logo-manager.js"></script>
+    
+    <!-- 3. 基础生成器类 -->
+    <script src="src/generators/base-generator.js"></script>
+    
+    <!-- 4. 派生生成器类 -->
+    <script src="src/generators/zxing-generator.js"></script>
+    <script src="src/generators/text-generator.js"></script>
+    <script src="src/generators/url-generator.js"></script>
+    
+    <!-- 5. 主应用脚本 -->
     <script src="script.js"></script>
 </body>
 </html> 
