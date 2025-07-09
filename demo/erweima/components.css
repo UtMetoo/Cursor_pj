@@ -22,6 +22,8 @@
   position: relative;
   overflow: hidden;
   z-index: 1;
+  /* [修复] 确保按钮文字在最上层 */
+  color: white !important;
 }
 
 .primary-btn::before {
@@ -41,6 +43,12 @@
 .primary-btn strong,
 .primary-btn em,
 .primary-btn b {
+  position: relative;
+  z-index: 2;
+}
+
+/* [修复] 确保按钮内的所有元素在最上层 */
+.primary-btn > * {
   position: relative;
   z-index: 2;
 }
@@ -126,6 +134,9 @@
   transition: all var(--transition-normal) ease;
   position: relative;
   overflow: hidden;
+  /* [修复] 调整按钮间距和内边距 */
+  margin-top: 0.8rem !important;
+  padding: 0.6rem 1rem !important;
 }
 
 .remove-logo-btn::before {
@@ -262,6 +273,11 @@ input[type="range"]:focus::-webkit-slider-thumb {
   color: var(--text-secondary);
   min-width: 50px;
   text-align: right;
+  /* [修复] 调整滑块和值的布局 */
+  display: inline-block;
+  margin-left: 5px;
+  min-width: 45px;
+  text-align: right;
 }
 
 /* 颜色选择器 */
@@ -275,6 +291,9 @@ input[type="color"] {
   transition: all var(--transition-normal) ease;
   padding: 0;
   box-shadow: var(--shadow-sm);
+  /* [修复] 调整颜色选择器大小 */
+  width: 40px !important;
+  height: 40px !important;
 }
 
 input[type="color"]:hover {
@@ -366,6 +385,8 @@ input[type="color"]::-webkit-color-swatch {
   position: relative;
   overflow: hidden;
   box-shadow: var(--shadow-sm);
+  /* [修复] 确保Logo上传按钮使用正确的背景色 */
+  background-color: var(--blue-500) !important;
 }
 
 .logo-upload label::before {
@@ -384,6 +405,8 @@ input[type="color"]::-webkit-color-swatch {
   background: var(--blue-600); /* 使用固定颜色而不是变量 */
   transform: translateY(-2px);
   box-shadow: var(--shadow-md);
+  /* [修复] 确保Logo上传按钮悬停时使用正确的背景色 */
+  background-color: var(--blue-600) !important;
 }
 
 .logo-upload label:hover::before {
@@ -460,6 +483,16 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--error);
   font-size: 0.9rem;
   margin-top: 0.5rem;
+  /* [修复] 确保错误提示文字清晰可见 */
+  color: #ffffff !important;
+  background-color: rgba(255, 59, 48, 0.9) !important;
+  padding: 0.8rem !important;
+  border-radius: var(--radius-md) !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15) !important;
+  font-weight: 500 !important;
+  text-align: center !important;
+  border: 1px solid rgba(255, 59, 48, 1) !important;
+  display: block !important;
 }
 
 /* ===== Logo上传区域新样式 ===== */
@@ -480,6 +513,13 @@ input[type="color"]::-webkit-color-swatch {
   cursor: pointer;
   transition: all var(--transition-normal) ease;
   text-align: center;
+  /* [修复] 优化Logo设置区域，使其更加紧凑 */
+  padding: 1.2rem 1rem !important;
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  gap: 1rem !important;
 }
 
 .logo-dropzone svg {
@@ -488,16 +528,33 @@ input[type="color"]::-webkit-color-swatch {
   stroke: var(--primary);
   margin-bottom: 0.8rem;
   transition: transform var(--transition-normal) ease;
+  /* [修复] 减小图标尺寸 */
+  width: 32px !important;
+  height: 32px !important;
+  margin-bottom: 0 !important;
+  flex-shrink: 0 !important;
 }
 
 .logo-dropzone span {
   font-weight: 500;
   color: var(--text-primary);
+  /* [修复] 调整文本样式 */
+  display: block !important;
+  margin-bottom: 0.2rem !important;
 }
 
 .logo-dropzone p {
   font-size: 0.9rem;
   margin-top: 0.2rem;
+  /* [修复] 调整文本样式 */
+  margin: 0 !important;
+  font-size: 0.8rem !important;
+}
+
+.logo-dropzone .text-content {
+  /* [修复] 调整文本内容区域样式 */
+  text-align: left !important;
+  flex: 1 !important;
 }
 
 .logo-dropzone:hover {
@@ -523,4 +580,33 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--on-error);
   transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
+}
+
+/* [修复] 确保暗色模式下的文本对比度 */
+@media (prefers-color-scheme: dark) {
+  .primary-btn,
+  .logo-upload label {
+    color: white !important;
+  }
+  
+  .type-btn.active {
+    background: var(--blue-500) !important;
+    color: white !important;
+  }
+}
+
+/* [修复] 在较小屏幕上恢复Logo拖放区域的垂直布局 */
+@media (max-width: 576px) {
+  .logo-dropzone {
+    flex-direction: column !important;
+    padding: 1rem !important;
+  }
+  
+  .logo-dropzone svg {
+    margin-bottom: 0.5rem !important;
+  }
+  
+  .logo-dropzone .text-content {
+    text-align: center !important;
+  }
 }
