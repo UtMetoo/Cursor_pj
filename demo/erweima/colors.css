@@ -37,7 +37,11 @@
   
   --background: var(--neutral-100);
   --surface: var(--neutral-50);
+  --surface-variant: #FAFAFA;
+  --surface-elevated: var(--neutral-50);
+  --surface-sunken: #F8F8FA;
   --border: var(--neutral-200);
+  --border-light: rgba(0, 0, 0, 0.05);
   
   --text-primary: var(--neutral-900);
   --text-secondary: var(--neutral-500);
@@ -48,6 +52,7 @@
   --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
   --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+  --shadow-focus: 0 0 0 3px rgba(0, 113, 227, 0.2);
   
   /* 圆角 */
   --radius-sm: 6px;
@@ -59,6 +64,18 @@
   --transition-fast: 0.2s;
   --transition-normal: 0.3s;
   --transition-slow: 0.5s;
+  
+  /* 卡片和面板效果 */
+  --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  --panel-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  
+  /* 强调色彩 - 用于高亮和特殊元素 */
+  --accent-purple: #BF5AF2;
+  --accent-orange: #FF9F0A;
+  --accent-yellow: #FFCC00;
+  --accent-green: #30D158;
+  --accent-teal: #64D2FF;
+  --accent-indigo: #5E5CE6;
 }
 
 /* 暗色模式支持 */
@@ -85,7 +102,11 @@
     
     --background: var(--neutral-100);
     --surface: var(--neutral-50);
+    --surface-variant: #252527;
+    --surface-elevated: #323234;
+    --surface-sunken: #19191B;
     --border: var(--neutral-200);
+    --border-light: rgba(255, 255, 255, 0.05);
     
     --text-primary: var(--neutral-900);
     --text-secondary: var(--neutral-500);
@@ -95,5 +116,10 @@
     --shadow-sm: 0 2px 4px rgba(0, 0, 0, 0.2);
     --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.25);
     --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.3);
+    --shadow-focus: 0 0 0 3px rgba(10, 132, 255, 0.3);
+    
+    /* 暗色模式卡片和面板效果 */
+    --card-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    --panel-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 }

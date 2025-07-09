@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>优雅二维码生成器</title>
     <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="fixes.css">
     <!-- 主题系统 -->
     <script src="theme.js"></script>
 </head>
@@ -47,13 +48,15 @@
                         </div>
                         <div class="input-group">
                             <label for="wifi-encryption">加密类型</label>
-                            <select id="wifi-encryption">
-                                <option value="WPA2">WPA2</option>
-                                <option value="WPA3">WPA3</option>
-                                <option value="WPA">WPA</option>
-                                <option value="WEP">WEP</option>
-                                <option value="nopass">无密码</option>
-                            </select>
+                            <div class="select-wrapper">
+                                <select id="wifi-encryption">
+                                    <option value="WPA2">WPA2</option>
+                                    <option value="WPA3">WPA3</option>
+                                    <option value="WPA">WPA</option>
+                                    <option value="WEP">WEP</option>
+                                    <option value="nopass">无密码</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="input-group checkbox">
                             <input type="checkbox" id="wifi-hidden">
@@ -73,17 +76,17 @@
                         <h3>样式设置</h3>
                         <div class="style-grid">
                             <div class="input-group">
-                                <label for="qr-size">二维码大小</label>
-                                <input type="range" id="qr-size" min="200" max="500" value="300" step="10">
-                                <span class="size-value">300px</span>
-                            </div>
-                            <div class="input-group">
                                 <label for="foreground-color">前景色</label>
                                 <input type="color" id="foreground-color" value="#000000">
                             </div>
                             <div class="input-group">
                                 <label for="background-color">背景色</label>
                                 <input type="color" id="background-color" value="#FFFFFF">
+                            </div>
+                            <div class="input-group">
+                                <label for="qr-size">二维码大小</label>
+                                <input type="range" id="qr-size" min="200" max="500" value="300" step="10">
+                                <span class="size-value">300px</span>
                             </div>
                             <div class="input-group">
                                 <label for="corner-radius">圆角效果</label>
@@ -97,13 +100,24 @@
                 <!-- 右侧列：Logo上传和预览 -->
                 <div class="right-column">
                     <!-- Logo上传区 -->
-                    <div class="style-section">
+                    <div class="style-section" id="logo-section">
                         <h3>Logo设置</h3>
-                        <div class="input-group logo-upload">
-                            <label for="logo-file">添加Logo</label>
-                            <input type="file" id="logo-file" accept="image/*">
-                            <button class="remove-logo-btn hidden">移除Logo</button>
+                        <div class="logo-upload-area">
+                            <input type="file" id="logo-file" accept="image/*" hidden>
+                            <label for="logo-file" class="logo-dropzone">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="feather feather-upload-cloud">
+                                    <path d="M16 16.5l-4-4-4 4"/>
+                                    <path d="M12 12.5v9"/>
+                                    <path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/>
+                                    <path d="M16 16.5l-4-4-4 4"/>
+                                </svg>
+                                <div class="text-content">
+                                    <span>点击或拖拽上传Logo</span>
+                                    <p>建议使用PNG格式</p>
+                                </div>
+                            </label>
                         </div>
+                        <button class="remove-logo-btn hidden">移除Logo</button>
                     </div>
                     
                     <!-- 预览区 -->
@@ -111,8 +125,8 @@
                         <h3>二维码预览</h3>
                         <div id="qr-preview"></div>
                         <div class="action-buttons">
-                            <button id="copy-btn" class="primary-btn">复制二维码</button>
-                            <button id="download-btn" class="primary-btn">下载PNG</button>
+                            <button id="copy-btn" class="primary-btn"><span>复制二维码</span></button>
+                            <button id="download-btn" class="primary-btn"><span>下载PNG</span></button>
                         </div>
                     </div>
                 </div>
@@ -120,7 +134,7 @@
         </main>
 
         <footer>
-            <p>由 Cursor 提供技术支持</p>
+            <p>由 Cursor提供技术支持</p>
         </footer>
     </div>
 

@@ -30,12 +30,34 @@ function applySystemAccentColor() {
   if (accentColor) {
     // 创建一个新的样式元素
     const styleEl = document.createElement('style');
+    
+    // 只修改非关键元素的颜色，避免影响核心功能
     styleEl.textContent = `
       :root {
-        --primary: ${accentColor};
-        --primary-light: ${accentColor}DD;
-        --primary-dark: ${accentColor}EE;
-        --primary-gradient: linear-gradient(to right, ${accentColor}, ${accentColor}EE);
+        --accent-color: ${accentColor};
+      }
+      
+      .type-btn.active {
+        background: var(--blue-500);
+      }
+      
+      .style-section h3::after,
+      .preview-section h3::after {
+        background: var(--blue-500);
+      }
+      
+      /* 确保按钮文字始终可见 */
+      .primary-btn {
+        color: white !important;
+      }
+      
+      /* 确保Logo按钮背景色正确 */
+      .logo-upload label {
+        background: var(--blue-500) !important;
+      }
+      
+      .logo-upload label:hover {
+        background: var(--blue-600) !important;
       }
     `;
     document.head.appendChild(styleEl);
@@ -54,6 +76,15 @@ function setupThemeListener() {
     console.log('系统主题已变更，重新应用强调色');
     applySystemAccentColor();
   });
+  
+  // 确保标题文本可见
+  setTimeout(() => {
+    const headerTitle = document.querySelector('header h1');
+    if (headerTitle) {
+      headerTitle.style.opacity = '1';
+      headerTitle.style.visibility = 'visible';
+    }
+  }, 100);
 }
 
 // 初始化

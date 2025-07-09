@@ -19,17 +19,46 @@
   justify-content: center;
   gap: 0.5rem;
   box-shadow: var(--shadow-sm);
+  position: relative;
+  overflow: hidden;
+  z-index: 1;
+}
+
+.primary-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s ease;
+  z-index: -1;
+}
+
+/* 确保按钮文字在最上层 */
+.primary-btn span,
+.primary-btn strong,
+.primary-btn em,
+.primary-btn b {
+  position: relative;
+  z-index: 2;
 }
 
 .primary-btn:hover {
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-md);
-  background: var(--primary-dark);
+  filter: brightness(1.05); /* 增加亮度 */
+}
+
+.primary-btn:hover::before {
+  left: 0;
 }
 
 .primary-btn:active {
-  transform: translateY(0);
-  background: var(--primary);
+  transform: translateY(-1px) scale(0.98); /* 增强按下效果 */
+  box-shadow: var(--shadow-sm); /* 恢复部分阴影 */
+  filter: brightness(1); /* 恢复亮度 */
 }
 
 /* 类型选择按钮 */
@@ -43,11 +72,34 @@
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-normal) ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.type-btn::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 3px;
+  background: var(--primary);
+  transition: width 0.3s ease;
 }
 
 .type-btn:hover {
   background: var(--neutral-100);
   border-color: var(--neutral-300);
+  color: var(--text-title);
+  transform: translateY(-1px);
+}
+
+.type-btn:active {
+  transform: translateY(0) scale(0.99);
+}
+
+.type-btn:hover::after {
+  width: 100%;
 }
 
 .type-btn.active {
@@ -55,6 +107,10 @@
   color: var(--text-on-primary);
   border-color: var(--primary);
   box-shadow: var(--shadow-sm);
+}
+
+.type-btn.active::after {
+  display: none;
 }
 
 /* 危险按钮 */
@@ -68,35 +124,66 @@
   font-weight: 500;
   cursor: pointer;
   transition: all var(--transition-normal) ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.remove-logo-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s ease;
 }
 
 .remove-logo-btn:hover {
   background: #FF2D20;
-  transform: translateY(-1px);
+  transform: translateY(-2px);
   box-shadow: var(--shadow-sm);
+}
+
+.remove-logo-btn:hover::before {
+  left: 0;
 }
 
 /* ===== 表单元素 ===== */
 
-/* 输入框和文本域 */
+/* 输入框、密码框、URL输入框、文本域和选择框的统一容器样式 */
 .input-group input[type="text"],
 .input-group input[type="password"],
 .input-group input[type="url"],
 .input-group textarea,
 .input-group select {
   width: 100%;
-  padding: 0.8rem;
+  padding: 0.9rem 1rem; /* 增加垂直内边距 */
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   font-size: 1rem;
+  font-family: inherit; /* 继承body字体 */
   color: var(--text-primary);
-  background: var(--surface);
+  background: var(--surface-variant); /* 使用更柔和的背景色 */
   transition: all var(--transition-normal) ease;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.04); /* 调整内阴影 */
+  -webkit-appearance: none; /* 移除iOS上的默认样式 */
+  -moz-appearance: none;
+  appearance: none;
 }
 
 .input-group textarea {
   min-height: 120px;
   resize: vertical;
+  line-height: 1.5;
+  padding: 1rem;
+}
+
+.input-group input:hover,
+.input-group textarea:hover,
+.input-group select:hover {
+  border-color: var(--neutral-400); /* 悬停时边框颜色加深 */
+  background: var(--surface);
 }
 
 .input-group input:focus,
@@ -104,8 +191,36 @@
 .input-group select:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 2px var(--blue-200);
+  box-shadow: 0 0 0 3px var(--primary-a10); /* 使用带透明度的主色调作为辉光 */
 }
+
+/* 针对 select 的特殊样式 */
+.input-group select {
+  padding-right: 2.5rem; /* 为自定义箭头留出空间 */
+}
+
+/* 自定义 select 下拉箭头 */
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper::after {
+  content: '⌄';
+  font-size: 1.5rem;
+  color: var(--text-secondary);
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none; /* 确保箭头不会干扰点击 */
+  transition: transform var(--transition-fast) ease;
+}
+
+.select-wrapper select:focus + ::after {
+  transform: translateY(-50%) rotate(180deg);
+}
+
 
 /* 滑块控件 */
 input[type="range"] {
@@ -116,25 +231,37 @@ input[type="range"] {
   outline: none;
   -webkit-appearance: none;
   margin: 10px 0;
+  position: relative;
 }
 
 input[type="range"]::-webkit-slider-thumb {
   -webkit-appearance: none;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   background: var(--primary-gradient);
   border-radius: 50%;
   cursor: pointer;
   box-shadow: var(--shadow-sm);
   transition: all var(--transition-fast) ease;
+  border: 2px solid white;
 }
 
 input[type="range"]::-webkit-slider-thumb:hover {
-  transform: scale(1.1);
+  transform: scale(1.15);
 }
 
 input[type="range"]:focus::-webkit-slider-thumb {
-  box-shadow: 0 0 0 3px var(--blue-200);
+  box-shadow: 0 0 0 4px var(--blue-200);
+}
+
+/* 滑块值显示 */
+.size-value, .radius-value {
+  display: inline-block;
+  margin-left: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  min-width: 50px;
+  text-align: right;
 }
 
 /* 颜色选择器 */
@@ -145,12 +272,19 @@ input[type="color"] {
   border: 2px solid var(--border);
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: border var(--transition-normal) ease;
+  transition: all var(--transition-normal) ease;
   padding: 0;
+  box-shadow: var(--shadow-sm);
+}
+
+input[type="color"]:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 input[type="color"]:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--blue-200);
 }
 
 input[type="color"]::-webkit-color-swatch-wrapper {
@@ -170,10 +304,17 @@ input[type="color"]::-webkit-color-swatch {
 }
 
 .input-group.checkbox input[type="checkbox"] {
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   accent-color: var(--primary);
   cursor: pointer;
+  border-radius: 4px;
+  transition: all var(--transition-normal) ease;
+}
+
+.input-group.checkbox label {
+  cursor: pointer;
+  user-select: none;
 }
 
 /* 密码输入组 */
@@ -191,12 +332,17 @@ input[type="color"]::-webkit-color-swatch {
   cursor: pointer;
   padding: 0.5rem;
   color: var(--text-secondary);
-  transition: color var(--transition-fast) ease;
+  transition: all var(--transition-fast) ease;
   z-index: 2;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .show-password-btn:hover {
   color: var(--primary);
+  background: rgba(0, 0, 0, 0.05);
 }
 
 /* Logo上传样式 */
@@ -210,18 +356,38 @@ input[type="color"]::-webkit-color-swatch {
 .logo-upload label {
   display: inline-block;
   padding: 0.8rem 1.5rem;
-  background: var(--primary);
+  background: var(--blue-500); /* 使用固定颜色而不是变量 */
   color: white;
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-normal) ease;
   text-align: center;
   font-weight: 500;
+  position: relative;
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.logo-upload label::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.1);
+  transition: all 0.4s ease;
+  z-index: -1;
 }
 
 .logo-upload label:hover {
-  background: var(--primary-dark);
-  transform: translateY(-1px);
+  background: var(--blue-600); /* 使用固定颜色而不是变量 */
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+.logo-upload label:hover::before {
+  left: 0;
 }
 
 .logo-upload input[type="file"] {
@@ -250,11 +416,15 @@ input[type="color"]::-webkit-color-swatch {
   border-radius: var(--radius-md);
   background: var(--neutral-800);
   color: white;
+  font-size: 0.9rem;
   font-weight: 500;
-  box-shadow: var(--shadow-md);
   opacity: 0;
-  transition: all var(--transition-normal) ease;
+  transition: all 0.3s ease;
+  box-shadow: var(--shadow-lg);
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .toast.show {
@@ -276,10 +446,13 @@ input[type="color"]::-webkit-color-swatch {
 
 /* 空状态 */
 .empty-state {
-  color: var(--text-secondary);
-  font-size: 1rem;
-  text-align: center;
   padding: 2rem;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  background: var(--neutral-100);
+  border-radius: var(--radius-md);
+  margin: 1rem 0;
 }
 
 /* 错误状态 */
@@ -287,4 +460,67 @@ input[type="color"]::-webkit-color-swatch {
   color: var(--error);
   font-size: 0.9rem;
   margin-top: 0.5rem;
+}
+
+/* ===== Logo上传区域新样式 ===== */
+.logo-upload-area {
+  margin-top: 1rem;
+}
+
+.logo-dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 2rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition-normal) ease;
+  text-align: center;
+}
+
+.logo-dropzone svg {
+  width: 40px;
+  height: 40px;
+  stroke: var(--primary);
+  margin-bottom: 0.8rem;
+  transition: transform var(--transition-normal) ease;
+}
+
+.logo-dropzone span {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+.logo-dropzone p {
+  font-size: 0.9rem;
+  margin-top: 0.2rem;
+}
+
+.logo-dropzone:hover {
+  border-color: var(--primary);
+  background-color: var(--primary-a10);
+}
+
+.logo-dropzone:hover svg {
+  transform: scale(1.1);
+}
+
+/* 移除Logo按钮调整 */
+.remove-logo-btn {
+  width: 100%;
+  margin-top: 1rem;
+  margin-left: 0; /* 覆盖旧样式 */
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+
+.remove-logo-btn:hover {
+  background: var(--error);
+  color: var(--on-error);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
 }
