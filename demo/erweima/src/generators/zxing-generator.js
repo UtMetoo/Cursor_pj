@@ -6,10 +6,7 @@ class ZXingBaseGenerator {
             height: options.height || 300,
             margin: options.margin || 1,
             errorCorrectionLevel: this._getErrorCorrectionLevel(options.errorCorrectionLevel),
-            logo: options.logo || null,
-            foreground: options.foreground || '#000000',
-            background: options.background || '#FFFFFF',
-            cornerRadius: options.cornerRadius || 0
+            logo: options.logo || null
         };
         
         this.writer = new ZXing.BrowserQRCodeSvgWriter();
@@ -46,127 +43,26 @@ class ZXingBaseGenerator {
                 hints
             );
 
-            // 重建SVG结构以确保背景色正确应用
-            const width = svgElement.getAttribute('width');
-            const height = svgElement.getAttribute('height');
-            const viewBox = svgElement.getAttribute('viewBox') || `0 0 ${width} ${height}`;
-            
-            // 创建新的SVG元素
-            const newSvg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-            newSvg.setAttribute('width', width);
-            newSvg.setAttribute('height', height);
-            newSvg.setAttribute('viewBox', viewBox);
-            
-            // 创建背景矩形
-            const bgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-            bgRect.setAttribute('width', '100%');
-            bgRect.setAttribute('height', '100%');
-            bgRect.setAttribute('fill', this.options.background);
-            
-            if (this.options.cornerRadius > 0) {
-                bgRect.setAttribute('rx', this.options.cornerRadius);
-                bgRect.setAttribute('ry', this.options.cornerRadius);
+            // 添加自定义样式
+            if (this.options.cornerRadius) {
+                svgElement.querySelector('rect').setAttribute('rx', this.options.cornerRadius);
+                svgElement.querySelector('rect').setAttribute('ry', this.options.cornerRadius);
             }
-            
-            // 添加背景矩形
-            newSvg.appendChild(bgRect);
-            
-            // 复制所有非背景元素并应用前景色
-            const elements = Array.from(svgElement.childNodes).filter(node => 
-                node.nodeName !== 'rect' || node.getAttribute('fill') !== 'white'
-            );
-            
-            for (const element of elements) {
-                const clone = element.cloneNode(true);
-                if (clone.nodeName === 'path' || clone.nodeName === 'polygon' || clone.nodeName === 'circle' || 
-                    (clone.nodeName === 'rect' && clone !== bgRect)) {
-                    clone.setAttribute('fill', this.options.foreground);
-                }
-                newSvg.appendChild(clone);
-            }
-            
-            console.log('[ZXingGenerator] SVG重建完成，应用了背景色:', this.options.background);
-            
+
             // 如果有Logo，使用LogoManager添加Logo
             if (this.options.logo) {
                 await this.logoManager.addLogoToSvg(
-                    newSvg,
+                    svgElement,
                     this.options.logo,
                     this.options.width,
                     this.options.height
                 );
             }
 
-            return newSvg;
+            return svgElement;
         } catch (error) {
             console.error('[ZXingGenerator] Error generating QR code:', error);
             throw new Error(`生成二维码失败: ${error.message}`);
-        }
-    }
-    
-    // 应用样式到SVG元素
-    _applyStyles(svgElement) {
-        try {
-            console.log('[ZXingGenerator] 开始应用样式:', {
-                foreground: this.options.foreground,
-                background: this.options.background,
-                cornerRadius: this.options.cornerRadius
-            });
-            
-            // 应用背景色 - 使用更精确的选择器
-            const rect = svgElement.querySelector('rect') || svgElement.querySelector('[fill="white"]');
-            if (rect) {
-                rect.setAttribute('fill', this.options.background);
-                console.log('[ZXingGenerator] 已应用背景色到矩形元素');
-                
-                // 应用圆角
-                if (this.options.cornerRadius > 0) {
-                    rect.setAttribute('rx', this.options.cornerRadius);
-                    rect.setAttribute('ry', this.options.cornerRadius);
-                    console.log('[ZXingGenerator] 已应用圆角效果');
-                }
-            } else {
-                console.warn('[ZXingGenerator] 未找到矩形元素，创建新的背景矩形');
-                
-                // 创建新的背景矩形
-                const newRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
-                newRect.setAttribute('width', '100%');
-                newRect.setAttribute('height', '100%');
-                newRect.setAttribute('fill', this.options.background);
-                
-                if (this.options.cornerRadius > 0) {
-                    newRect.setAttribute('rx', this.options.cornerRadius);
-                    newRect.setAttribute('ry', this.options.cornerRadius);
-                }
-                
-                // 将背景矩形插入到SVG的最前面
-                svgElement.insertBefore(newRect, svgElement.firstChild);
-                console.log('[ZXingGenerator] 已创建并应用新的背景矩形');
-            }
-
-            // 应用前景色到所有路径
-            const paths = svgElement.querySelectorAll('path');
-            if (paths && paths.length > 0) {
-                paths.forEach(path => {
-                    path.setAttribute('fill', this.options.foreground);
-                });
-                console.log(`[ZXingGenerator] 已应用前景色到 ${paths.length} 个路径元素`);
-            } else {
-                console.warn('[ZXingGenerator] 未找到路径元素，尝试应用到其他可能的元素');
-                
-                // 尝试应用到其他可能包含二维码模块的元素
-                const modules = svgElement.querySelectorAll('rect:not(:first-child), polygon, circle');
-                if (modules && modules.length > 0) {
-                    modules.forEach(module => {
-                        module.setAttribute('fill', this.options.foreground);
-                    });
-                    console.log(`[ZXingGenerator] 已应用前景色到 ${modules.length} 个其他元素`);
-                }
-            }
-
-            console.log('[ZXingGenerator] 样式应用完成');
-        } catch (error) {
-            console.error('[ZXingGenerator] 应用样式时出错:', error);
         }
     }
 }
@@ -181,7 +77,7 @@ class ZXingWifiGenerator extends ZXingBaseGenerator {
         this.encryptionDisplay = {
             'WPA': 'WPA',
             'WPA2': 'WPA2',
-            'WPA3': 'WPA3',
+            'WPA3': 'WPA2',  // WPA3使用WPA2标识
             'WEP': 'WEP',
             'nopass': 'nopass'
         };
@@ -191,6 +87,11 @@ class ZXingWifiGenerator extends ZXingBaseGenerator {
         // 验证SSID
         if (!ssid || typeof ssid !== 'string' || ssid.trim().length === 0) {
             throw new Error('SSID不能为空');
+        }
+        
+        // 验证SSID不含分号
+        if (ssid.includes(';')) {
+            throw new Error('wifi名不能包含;');
         }
 
         // 验证加密类型
@@ -254,12 +155,12 @@ class ZXingWifiGenerator extends ZXingBaseGenerator {
             .join('')
             // 处理需要转义的特殊字符
             .replace(/([;:,"'])/g, (match) => {
-                // 单引号和双引号都转义为双引号
-                if (match === "'" || match === '"') {
-                    return '\\"';
-                }
+                // // 单引号和双引号都转义为双引号
+                // if (match === "'" || match === '"') {
+                //     return '\\"';
+                // }
                 // 其他特殊字符正常转义
-                return '\\' + match;
+                return match;
             });
     }
 
