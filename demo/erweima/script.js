@@ -7,17 +7,6 @@ function debounce(func, wait) {
     };
 }
 
-// Logo处理相关配置
-const LOGO_CONFIG = {
-    size: 0.2,          // Logo大小占二维码的比例
-    margin: 0.1,        // Logo边距占Logo大小的比例
-    borderRadius: 0.15, // Logo圆角占Logo大小的比例
-    borderColor: '#fff',// Logo边框颜色
-    borderWidth: 5,     // Logo边框宽度
-    shadowBlur: 5,      // 阴影模糊半径
-    shadowColor: 'rgba(0, 0, 0, 0.2)' // 阴影颜色
-};
-
 // 当前二维码选项
 const qrOptions = {
     size: 300,
@@ -98,7 +87,6 @@ const elements = {
 
 // 初始化函数
 function init() {
-    // 等待 DOM 加载完成
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', initializeApp);
     } else {
@@ -109,16 +97,9 @@ function init() {
 // 应用初始化
 function initializeApp() {
     try {
-        // 初始化 DOM 元素
         initializeElements();
-        
-        // 设置事件监听器
         setupEventListeners();
-        
-        // 初始显示文本二维码输入区
         switchType('text');
-        
-        // 初始生成空二维码
         updateQRCode();
 
         // 初始化预览容器尺寸
@@ -126,7 +107,6 @@ function initializeApp() {
         if (elements.preview && initialSize) {
             elements.preview.style.width = `${initialSize}px`;
             elements.preview.style.height = `${initialSize}px`;
-            console.log(`初始化预览容器尺寸为 ${initialSize}px`);
         }
     } catch (error) {
         console.error('初始化应用时出错:', error);
@@ -197,8 +177,8 @@ function setupEventListeners() {
     elements.removeLogoBtn.addEventListener('click', removeLogo);
 
     // 复制和下载按钮
-    elements.copyBtn.addEventListener('click', copyQRCode);
-    elements.downloadBtn.addEventListener('click', downloadQRCode);
+    elements.copyBtn.addEventListener('click', () => processQRCode('copy'));
+    elements.downloadBtn.addEventListener('click', () => processQRCode('download'));
 }
 
 // 切换二维码类型
@@ -238,8 +218,6 @@ async function updateQRCode() {
             case 'text':
                 content = elements.inputs.text.value.trim();
                 if (content) {
-                    console.log('生成文本二维码:', content);
-                    // 使用ZXingBaseGenerator的generate方法
                     svgElement = await generators.text.generate(content);
                 }
                 break;
@@ -251,7 +229,6 @@ async function updateQRCode() {
                 const hidden = elements.inputs.wifiHidden.checked;
                 
                 if (ssid) {
-                    console.log('生成WiFi二维码:', { ssid, encryption, hidden });
                     svgElement = await generators.wifi.generateWifiQR(ssid, password, encryption, hidden);
                 }
                 break;
@@ -263,8 +240,6 @@ async function updateQRCode() {
                     if (!content.startsWith('http://') && !content.startsWith('https://')) {
                         content = `https://${content}`;
                     }
-                    console.log('生成URL二维码:', content);
-                    // 使用ZXingBaseGenerator的generate方法
                     svgElement = await generators.url.generate(content);
                 }
                 break;
@@ -274,11 +249,6 @@ async function updateQRCode() {
         elements.preview.innerHTML = '';
         
         if (svgElement) {
-            console.log('二维码SVG元素生成成功，尺寸:', {
-                width: qrOptions.size,
-                height: qrOptions.size
-            });
-            
             // 设置SVG样式
             svgElement.style.width = '100%';
             svgElement.style.height = '100%';
@@ -287,30 +257,11 @@ async function updateQRCode() {
             if (!svgElement.getAttribute('viewBox')) {
                 const viewBox = `0 0 ${qrOptions.size} ${qrOptions.size}`;
                 svgElement.setAttribute('viewBox', viewBox);
-                console.log('设置SVG viewBox:', viewBox);
             }
             
-            // 验证SVG属性
-            console.log('SVG属性:', {
-                width: svgElement.style.width,
-                height: svgElement.style.height,
-                viewBox: svgElement.getAttribute('viewBox')
-            });
-            
             // 添加SVG到预览区
-            elements.preview.innerHTML = '';
             elements.preview.appendChild(svgElement);
-            console.log('二维码已添加到预览区');
-            
-            // 验证预览区尺寸
-            console.log('预览区尺寸:', {
-                width: elements.preview.offsetWidth,
-                height: elements.preview.offsetHeight,
-                clientWidth: elements.preview.clientWidth,
-                clientHeight: elements.preview.clientHeight
-            });
         } else {
-            console.log('没有内容需要生成二维码');
             elements.preview.innerHTML = '<p class="empty-state">请输入内容生成二维码</p>';
         }
 
@@ -336,7 +287,6 @@ async function handleStyleChange(event) {
         if (previewElement) {
             previewElement.style.width = `${value}px`;
             previewElement.style.height = `${value}px`;
-            console.log(`设置预览容器尺寸为 ${value}px`);
         }
         
         // 更新生成器的宽高
@@ -369,11 +319,11 @@ async function handleStyleChange(event) {
         qrOptions.background = value;
 
         // 更新生成器的背景色
-        Object.values(generators).forEach(generator => {
-            if (generator.options) {
+    Object.values(generators).forEach(generator => {
+        if (generator.options) {
                 generator.options.background = qrOptions.background;
-            }
-        });
+        }
+    });
     }
 
     // 重新生成二维码
@@ -461,12 +411,12 @@ function togglePasswordVisibility() {
     elements.showPasswordBtn.textContent = type === 'password' ? '👁️' : '🔒';
 }
 
-// 下载二维码
-async function downloadQRCode() {
+// 将SVG渲染到Canvas并应用圆角效果
+async function renderQRToCanvas(action = 'download') {
     try {
         const svgElement = elements.preview.querySelector('svg');
         if (!svgElement) {
-            throw new Error('没有可下载的二维码');
+            throw new Error(`没有可${action === 'download' ? '下载' : '复制'}的二维码`);
         }
 
         // 获取当前二维码的配置
@@ -474,8 +424,6 @@ async function downloadQRCode() {
         const bgColor = qrOptions.background;
         const fgColor = qrOptions.foreground;
         const cornerRadius = qrOptions.cornerRadius || 0;
-        
-        console.log('[下载] 开始下载二维码，配置:', { size, bgColor, fgColor, cornerRadius });
 
         // 创建一个深度克隆的SVG副本，避免修改原始SVG
         const svgClone = svgElement.cloneNode(true);
@@ -488,7 +436,6 @@ async function downloadQRCode() {
         const bgRect = svgClone.querySelector('rect');
         if (bgRect) {
             bgRect.setAttribute('fill', bgColor);
-            console.log('[下载] 设置背景矩形颜色:', bgColor);
         }
         
         // 确保所有路径使用正确的前景色
@@ -496,7 +443,6 @@ async function downloadQRCode() {
         paths.forEach(path => {
             path.setAttribute('fill', fgColor);
         });
-        console.log(`[下载] 设置${paths.length}个路径元素的颜色:`, fgColor);
 
         // 创建一个离屏Canvas用于渲染SVG
         const svgCanvas = document.createElement('canvas');
@@ -508,8 +454,6 @@ async function downloadQRCode() {
         const svgData = new XMLSerializer().serializeToString(svgClone);
         const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
         const svgUrl = URL.createObjectURL(svgBlob);
-        
-        console.log('[下载] SVG已序列化，大小:', svgData.length);
 
         // 创建图片对象
         const img = new Image();
@@ -521,15 +465,12 @@ async function downloadQRCode() {
                 try {
                     // 绘制到SVG Canvas
                     svgCtx.drawImage(img, 0, 0, size, size);
-                    console.log('[下载] SVG图片已绘制到临时Canvas');
                     resolve();
                 } catch (err) {
-                    console.error('[下载] 绘制SVG图片到Canvas时出错:', err);
                     reject(err);
                 }
             };
             img.onerror = (err) => {
-                console.error('[下载] 加载SVG图片失败:', err);
                 reject(new Error('加载SVG图片失败'));
             };
             img.src = svgUrl;
@@ -546,8 +487,6 @@ async function downloadQRCode() {
 
         // 应用圆角效果
         if (cornerRadius > 0) {
-            console.log(`[下载] 应用圆角效果: ${cornerRadius}px`);
-            
             // 创建圆角路径
             finalCtx.beginPath();
             finalCtx.moveTo(cornerRadius, 0);
@@ -574,175 +513,46 @@ async function downloadQRCode() {
             
             // 恢复裁剪区域
             finalCtx.restore();
-            
-            console.log('[下载] 已应用圆角效果并绘制二维码');
         } else {
             // 无圆角，直接绘制
             finalCtx.fillStyle = bgColor;
             finalCtx.fillRect(0, 0, size, size);
             finalCtx.drawImage(svgCanvas, 0, 0);
-            console.log('[下载] 无圆角，直接绘制二维码');
         }
 
-        // 转换为PNG并下载
-        try {
-            const pngUrl = finalCanvas.toDataURL('image/png');
-            const downloadLink = document.createElement('a');
-            downloadLink.href = pngUrl;
-            downloadLink.download = `qrcode-${Date.now()}.png`;
-            document.body.appendChild(downloadLink);
-            downloadLink.click();
-            document.body.removeChild(downloadLink);
-            console.log('[下载] 二维码已下载为PNG');
-            showToast('二维码已下载');
-        } catch (err) {
-            console.error('[下载] 转换为PNG时出错:', err);
-            throw new Error('转换为PNG失败: ' + err.message);
-        }
+        return finalCanvas;
     } catch (error) {
-        console.error('[下载] 下载二维码时出错:', error);
-        showError('下载失败: ' + error.message);
+        console.error(`渲染二维码到Canvas时出错:`, error);
+        throw error;
     }
 }
 
-// 复制二维码
-async function copyQRCode() {
+// 处理二维码操作（下载或复制）
+async function processQRCode(action) {
     try {
-        const svgElement = elements.preview.querySelector('svg');
-        if (!svgElement) {
-            throw new Error('没有可复制的二维码');
-        }
-
-        // 获取当前二维码的配置
-        const size = qrOptions.size;
-        const bgColor = qrOptions.background;
-        const fgColor = qrOptions.foreground;
-        const cornerRadius = qrOptions.cornerRadius || 0;
+        const canvas = await renderQRToCanvas(action);
         
-        console.log('[复制] 开始复制二维码，配置:', { size, bgColor, fgColor, cornerRadius });
-
-        // 创建一个深度克隆的SVG副本，避免修改原始SVG
-        const svgClone = svgElement.cloneNode(true);
-        
-        // 确保SVG尺寸正确
-        svgClone.setAttribute('width', size);
-        svgClone.setAttribute('height', size);
-        
-        // 确保背景色正确
-        const bgRect = svgClone.querySelector('rect');
-        if (bgRect) {
-            bgRect.setAttribute('fill', bgColor);
-            console.log('[复制] 设置背景矩形颜色:', bgColor);
-        }
-        
-        // 确保所有路径使用正确的前景色
-        const paths = svgClone.querySelectorAll('path, polygon');
-        paths.forEach(path => {
-            path.setAttribute('fill', fgColor);
-        });
-        console.log(`[复制] 设置${paths.length}个路径元素的颜色:`, fgColor);
-
-        // 创建一个离屏Canvas用于渲染SVG
-        const svgCanvas = document.createElement('canvas');
-        svgCanvas.width = size;
-        svgCanvas.height = size;
-        const svgCtx = svgCanvas.getContext('2d');
-
-        // 将SVG转换为XML字符串，确保包含所有命名空间
-        const svgData = new XMLSerializer().serializeToString(svgClone);
-        const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-        const svgUrl = URL.createObjectURL(svgBlob);
-        
-        console.log('[复制] SVG已序列化，大小:', svgData.length);
-
-        // 创建图片对象
-        const img = new Image();
-        img.crossOrigin = 'Anonymous'; // 处理可能的跨域问题
-
-        // 等待图片加载完成
-        await new Promise((resolve, reject) => {
-            img.onload = () => {
-                try {
-                    // 绘制到SVG Canvas
-                    svgCtx.drawImage(img, 0, 0, size, size);
-                    console.log('[复制] SVG图片已绘制到临时Canvas');
-                    resolve();
-                } catch (err) {
-                    console.error('[复制] 绘制SVG图片到Canvas时出错:', err);
-                    reject(err);
-                }
-            };
-            img.onerror = (err) => {
-                console.error('[复制] 加载SVG图片失败:', err);
-                reject(new Error('加载SVG图片失败'));
-            };
-            img.src = svgUrl;
-        });
-
-        // 释放SVG URL
-        URL.revokeObjectURL(svgUrl);
-
-        // 创建最终的Canvas，应用圆角效果
-        const finalCanvas = document.createElement('canvas');
-        finalCanvas.width = size;
-        finalCanvas.height = size;
-        const finalCtx = finalCanvas.getContext('2d');
-
-        // 应用圆角效果
-        if (cornerRadius > 0) {
-            console.log(`[复制] 应用圆角效果: ${cornerRadius}px`);
-            
-            // 创建圆角路径
-            finalCtx.beginPath();
-            finalCtx.moveTo(cornerRadius, 0);
-            finalCtx.lineTo(size - cornerRadius, 0);
-            finalCtx.quadraticCurveTo(size, 0, size, cornerRadius);
-            finalCtx.lineTo(size, size - cornerRadius);
-            finalCtx.quadraticCurveTo(size, size, size - cornerRadius, size);
-            finalCtx.lineTo(cornerRadius, size);
-            finalCtx.quadraticCurveTo(0, size, 0, size - cornerRadius);
-            finalCtx.lineTo(0, cornerRadius);
-            finalCtx.quadraticCurveTo(0, 0, cornerRadius, 0);
-            finalCtx.closePath();
-            
-            // 设置裁剪区域
-            finalCtx.save();
-            finalCtx.clip();
-            
-            // 绘制背景
-            finalCtx.fillStyle = bgColor;
-            finalCtx.fillRect(0, 0, size, size);
-            
-            // 绘制SVG内容
-            finalCtx.drawImage(svgCanvas, 0, 0);
-            
-            // 恢复裁剪区域
-            finalCtx.restore();
-            
-            console.log('[复制] 已应用圆角效果并绘制二维码');
-        } else {
-            // 无圆角，直接绘制
-            finalCtx.fillStyle = bgColor;
-            finalCtx.fillRect(0, 0, size, size);
-            finalCtx.drawImage(svgCanvas, 0, 0);
-            console.log('[复制] 无圆角，直接绘制二维码');
-        }
-
-        try {
-            // 转换为Blob并复制到剪贴板
-            const blob = await new Promise(resolve => finalCanvas.toBlob(resolve));
-            await navigator.clipboard.write([
-                new ClipboardItem({ 'image/png': blob })
-            ]);
-            console.log('[复制] 图片已复制到剪贴板');
+        if (action === 'download') {
+        // 转换为PNG并下载
+        const pngUrl = canvas.toDataURL('image/png');
+        const downloadLink = document.createElement('a');
+        downloadLink.href = pngUrl;
+        downloadLink.download = `qrcode-${Date.now()}.png`;
+        document.body.appendChild(downloadLink);
+        downloadLink.click();
+        document.body.removeChild(downloadLink);
+        showToast('二维码已下载');
+        } else if (action === 'copy') {
+                        // 转换为Blob并复制到剪贴板
+                    const blob = await new Promise(resolve => canvas.toBlob(resolve));
+                    await navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': blob })
+                    ]);
             showToast('二维码已复制到剪贴板');
-        } catch (clipboardError) {
-            console.error('[复制] 复制到剪贴板失败:', clipboardError);
-            throw clipboardError;
         }
     } catch (error) {
-        console.error('[复制] 复制二维码时出错:', error);
-        showError('复制失败: ' + error.message);
+        console.error(`${action === 'download' ? '下载' : '复制'}二维码时出错:`, error);
+        showError(`${action === 'download' ? '下载' : '复制'}失败: ${error.message}`);
     }
 }
 
@@ -772,4 +582,4 @@ function showError(message) {
 }
 
 // 启动应用
-init();
+init(); 
