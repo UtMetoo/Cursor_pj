@@ -39,11 +39,205 @@
 
 - HTML5
 - CSS3（使用现代CSS特性）
-- JavaScript（原生）
-- ZXing（专业的二维码生成库）
+- JavaScript（原生ES6+）
+- ZXing.js 0.21.3（专业的二维码生成库）
   - 支持多种二维码格式
   - 提供高级错误纠正
   - 支持自定义编码
+  - 统一的BrowserQRCodeSvgWriter API
+
+## 项目结构
+
+### 📁 整体架构
+
+```
+demo/erweima/
+├── 🚀 入口文件
+│   ├── index.html (主页面)
+│   └── script.js (旧版主脚本，已备份)
+│
+├── 🎨 样式系统
+│   ├── styles.css (主样式入口)
+│   ├── colors.css (色彩系统)
+│   ├── components.css (组件样式)
+│   ├── layout.css (布局样式)
+│   └── theme.js (主题管理)
+│
+├── 🔧 核心源码 (src/)
+│   ├── renderers/ (渲染引擎)
+│   ├── generators/ (生成器)
+│   ├── js/ (应用逻辑)
+│   └── utils/ (工具类)
+│
+└── 🧪 测试文件 (test/)
+```
+
+### 🔧 核心模块详细结构
+
+#### 1. 渲染引擎层 (src/renderers/)
+```
+renderers/
+└── zxing/
+    ├── ZXingRenderer.js     # 统一渲染引擎
+    ├── colorManager.js      # 颜色管理器
+    └── svgBuilder.js        # SVG构建工具
+```
+
+**功能说明**：
+- **ZXingRenderer.js**: 核心渲染引擎，统一处理二维码生成、颜色应用、Logo添加
+- **colorManager.js**: 专门处理二维码颜色应用，支持前景色和背景色设置
+- **svgBuilder.js**: SVG元素构建工具，创建Logo、阴影、裁剪路径等
+
+#### 2. 生成器层 (src/generators/)
+```
+generators/
+└── logo-manager.js         # Logo管理器
+```
+
+**功能说明**：
+- **logo-manager.js**: 处理Logo添加、移除、样式设置
+
+**注意**: 旧版的text-generator.js和url-generator.js已被移除，功能已统一到ZXingRenderer中。
+
+#### 3. 应用逻辑层 (src/js/)
+```
+js/
+├── app.js                  # 主应用入口
+└── modules/
+    ├── config.js           # 配置管理
+    ├── dom.js             # DOM操作
+    ├── actions.js         # 用户操作处理
+    ├── qr-generator.js    # 生成器工厂
+    ├── utils.js           # 工具函数
+    ├── zxing-access.js    # ZXing库访问器
+    └── init-check.js      # 依赖检查
+```
+
+**功能说明**：
+- **app.js**: 应用主入口，初始化所有模块，处理事件监听
+- **config.js**: 默认配置和选项管理
+- **dom.js**: DOM元素初始化、更新、样式处理
+- **actions.js**: 处理Logo上传、二维码复制下载等用户操作
+- **qr-generator.js**: 生成器工厂模式，创建和管理不同类型的生成器
+- **utils.js**: 通用工具函数（防抖、Toast提示、Canvas转换等）
+- **zxing-access.js**: ZXing库访问器，解决ES模块作用域问题
+- **init-check.js**: 依赖加载检查，确保所有模块正确加载
+
+#### 4. 工具层 (src/utils/)
+```
+utils/
+└── test-framework.js       # 自定义测试框架
+```
+
+**功能说明**：
+- **test-framework.js**: 完整的测试框架，支持测试套件、断言、异步测试
+
+### 🧪 测试系统 (test/)
+
+```
+test/
+├── migration-test.html      # 主要迁移测试（推荐使用）
+├── latest-zxing-test.html   # ZXing.js 0.21.3 API测试
+├── test-download.html      # 下载功能测试
+├── unified-test.html       # 统一测试页面
+└── renderer/               # 渲染器专门测试
+    ├── integration-test.html    # 集成测试
+    └── zxing-renderer-test.html # 渲染器单元测试
+```
+
+**测试说明**：
+- **migration-test.html**: 核心测试文件，验证所有迁移功能
+- **latest-zxing-test.html**: 验证ZXing.js API兼容性
+- 已清理临时调试文件，保留核心测试功能
+
+### 🔄 数据流向图
+
+```
+用户输入 → DOM模块 → 应用逻辑 → 生成器工厂 → 具体生成器 → ZXingRenderer → SVG输出 → 预览/下载
+    ↓
+样式设置 → 配置更新 → 生成器选项更新 → 重新渲染 → 实时预览
+    ↓
+Logo上传 → Logo管理器 → SVG构建器 → Logo添加到SVG → 最终输出
+```
+
+### 🎯 核心功能模块
+
+#### 1. 二维码生成流程
+1. **输入验证** → 2. **内容处理** → 3. **ZXing编码** → 4. **SVG生成** → 5. **样式应用** → 6. **Logo添加** → 7. **预览显示**
+
+#### 2. 样式系统
+- **颜色管理**: 前景色、背景色、Logo颜色
+- **尺寸控制**: 200px-500px可调，实时预览
+- **圆角效果**: 0-50px可调，支持预览和下载
+- **Logo功能**: 上传、移除、自动缩放
+
+#### 3. 用户交互
+- **实时预览**: 输入时即时生成
+- **一键复制**: 复制到剪贴板
+- **PNG下载**: 高质量图片下载
+- **响应式设计**: 移动端完美适配
+
+### 🚀 技术特点
+
+#### 优势
+1. **统一架构**: 完全基于ZXing，减少依赖
+2. **模块化设计**: 清晰的职责分离
+3. **ES模块**: 现代化的模块系统
+4. **测试完备**: 自定义测试框架
+5. **性能优化**: 防抖、缓存、懒加载
+
+#### 技术栈
+- **前端**: HTML5 + CSS3 + 原生JavaScript
+- **二维码**: ZXing库
+- **模块化**: ES6模块系统
+- **测试**: 自定义测试框架
+- **样式**: 现代CSS特性（Grid、Flexbox、CSS变量）
+
+### 📊 项目状态
+
+✅ **已完成**:
+- 统一ZXing架构迁移
+- ZXing.js 0.21.3升级
+- API兼容性问题解决
+- 完整功能实现
+- 测试框架搭建
+- 响应式设计
+- 性能优化
+- 旧代码清理
+
+🔄 **进行中**:
+- 样式系统优化
+- 错误处理完善
+- 用户体验提升
+
+📋 **计划中**:
+- 色彩系统升级
+- 字体排版优化
+- 更多二维码类型支持
+
+### 🔄 ZXing.js迁移说明
+
+#### 迁移完成情况
+- ✅ **完全迁移到ZXing.js 0.21.3**
+- ✅ **移除旧版QRCode.js依赖**
+- ✅ **统一使用BrowserQRCodeSvgWriter API**
+- ✅ **解决API兼容性问题**
+- ✅ **清理临时调试文件**
+
+#### API使用建议
+```javascript
+// 推荐使用方式
+const writer = new ZXing.BrowserQRCodeSvgWriter();
+const svg = writer.write('内容', 200, 200);
+
+// 避免使用（存在兼容性问题）
+// const qrWriter = new ZXing.QRCodeWriter(); // ❌
+```
+
+#### 已知问题和解决方案
+- **QRCodeWriter API问题**: 在ZXing.js 0.21.3中存在hints参数处理错误
+- **解决方案**: 统一使用BrowserQRCodeSvgWriter，提供稳定的API
+- **测试验证**: 通过migration-test.html验证所有功能正常
 
 ## 测试框架
 
@@ -73,6 +267,7 @@
   - 支持WPA/WPA2/WPA3/WEP加密方式
   - 支持中文SSID，并正确处理特殊字符
   - 支持隐藏网络配置
+  - SSID不能包含分号(;)，否则会提示错误
 - URL二维码特别说明：
   - 自动补全http/https协议
   - 支持mailto:和tel:协议
@@ -80,6 +275,23 @@
 
 ## 最近更新
 
+### 🔄 ZXing.js迁移完成（最新）
+- 完全迁移到ZXing.js 0.21.3，移除旧版QRCode.js依赖
+- 解决了ZXing.js API兼容性问题（QRCodeWriter hints参数错误）
+- 统一使用BrowserQRCodeSvgWriter API，提供稳定的二维码生成
+- 清理了临时调试文件，保留核心测试功能
+- 更新了项目文档，反映当前架构状态
+- 删除了旧版生成器代码（text-generator.js、url-generator.js）
+- 优化了ZXingRenderer.js，实现多种API调用方式的容错机制
+
+### 🧹 代码清理和优化
+- 删除了script.js.bak备份文件
+- 移除了临时调试测试文件（debug-color-test.html、logo-debug-test.html等）
+- 保留了核心测试文件（migration-test.html、latest-zxing-test.html）
+- 优化了测试文件结构，提高了可维护性
+
+### 🎨 样式和功能优化（历史更新）
+- 增加了对WiFi SSID的验证，禁止使用分号(;)，以确保二维码格式正确
 - 优化CSS文件结构，将fixes.css中的修复按功能合并到相应的CSS文件中：
   - 将按钮、表单元素和交互组件相关的修复合并到components.css
   - 将布局、网格和容器相关的修复合并到layout.css

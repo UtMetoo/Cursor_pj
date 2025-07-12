@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>简单颜色测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .qr-container {
+            display: flex;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .qr-item {
+            text-align: center;
+            border: 1px solid #ccc;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .console {
+            background: #000;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 2rem 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>简单颜色测试</h1>
+    
+    <div class="qr-container">
+        <div class="qr-item">
+            <h3>默认黑白</h3>
+            <div id="default-qr"></div>
+        </div>
+        <div class="qr-item">
+            <h3>红色二维码</h3>
+            <div id="red-qr"></div>
+        </div>
+        <div class="qr-item">
+            <h3>蓝色二维码</h3>
+            <div id="blue-qr"></div>
+        </div>
+    </div>
+    
+    <div class="console" id="console"></div>
+
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+
+    <script>
+        function log(msg) {
+            const console = document.getElementById('console');
+            console.innerHTML += new Date().toLocaleTimeString() + ': ' + msg + '\n';
+            console.scrollTop = console.scrollHeight;
+        }
+
+        async function test() {
+            try {
+                // 等待依赖加载
+                await new Promise(resolve => {
+                    const check = () => {
+                        if (window.ZXing && window.ZXingRenderer) {
+                            resolve();
+                        } else {
+                            setTimeout(check, 100);
+                        }
+                    };
+                    check();
+                });
+
+                log('开始测试...');
+
+                // 默认黑白二维码
+                const defaultRenderer = new ZXingRenderer({ size: 150 });
+                const defaultQR = await defaultRenderer.generate('默认测试');
+                document.getElementById('default-qr').appendChild(defaultQR);
+                log('默认二维码生成完成');
+
+                // 红色二维码
+                const redRenderer = new ZXingRenderer({ 
+                    size: 150,
+                    foreground: '#FF0000',
+                    background: '#FFFFFF'
+                });
+                redRenderer.colorManager.debug = true;
+                const redQR = await redRenderer.generate('红色测试');
+                document.getElementById('red-qr').appendChild(redQR);
+                log('红色二维码生成完成');
+
+                // 蓝色二维码
+                const blueRenderer = new ZXingRenderer({ 
+                    size: 150,
+                    foreground: '#0000FF',
+                    background: '#FFFF00'
+                });
+                blueRenderer.colorManager.debug = true;
+                const blueQR = await blueRenderer.generate('蓝色测试');
+                document.getElementById('blue-qr').appendChild(blueQR);
+                log('蓝色二维码生成完成');
+
+                log('所有测试完成！');
+            } catch (error) {
+                log('测试失败: ' + error.message);
+                console.error(error);
+            }
+        }
+
+        window.addEventListener('load', test);
+    </script>
+</body>
+</html> 

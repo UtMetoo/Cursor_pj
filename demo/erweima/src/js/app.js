@@ -8,6 +8,8 @@ import { debounce, showToast, showError } from './modules/utils.js';
 import { initializeElements, getElements, togglePasswordVisibility, updatePreview, updatePreviewSize } from './modules/dom.js';
 import { QRGeneratorFactory, QRProcessor } from './modules/qr-generator.js';
 import { processQRCode, handleLogoUpload, removeLogo } from './modules/actions.js';
+import { checkZXingAPI } from './modules/zxing-access.js';
+import { waitForDependencies } from './modules/init-check.js';
 
 // 应用状态
 const appState = {
@@ -22,8 +24,11 @@ let qrProcessor;
 /**
  * 初始化应用
  */
-function initApp() {
+async function initApp() {
     try {
+        // 等待所有依赖加载完成
+        await waitForDependencies();
+        
         // 初始化DOM元素
         const elements = initializeElements();
         
@@ -136,7 +141,9 @@ async function updateQRCode() {
         const elements = getElements();
         
         // 检查ZXing库是否正确加载
-        if (typeof ZXing === 'undefined') {
+        try {
+            checkZXingAPI();
+        } catch (error) {
             throw new Error('ZXing库未正确加载，请刷新页面重试');
         }
         
@@ -180,7 +187,8 @@ async function handleStyleChange(event) {
         // 更新预览容器的尺寸
         updatePreviewSize(value);
         
-        // 更新生成器的宽高
+        // 更新生成器的尺寸
+        QRGeneratorFactory.updateGeneratorsOption(generators, 'size', parseInt(value));
         QRGeneratorFactory.updateGeneratorsOption(generators, 'width', parseInt(value));
         QRGeneratorFactory.updateGeneratorsOption(generators, 'height', parseInt(value));
     } else if (input.id === 'corner-radius') {

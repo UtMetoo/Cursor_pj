@@ -1,0 +1,541 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZXing统一迁移验证测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-result {
+            margin: 1rem 0;
+            padding: 0.5rem;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        .warning { background: #fff3cd; color: #856404; }
+        .qr-container {
+            display: inline-block;
+            margin: 1rem;
+            padding: 1rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .qr-container p {
+            margin: 0.5rem 0;
+            font-size: 0.9rem;
+            color: #666;
+        }
+        .console {
+            background: #1c1c1e;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        .test-summary {
+            margin-top: 2rem;
+            padding: 1rem;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+    <h1>ZXing统一迁移验证测试</h1>
+    
+    <div class="test-section">
+        <h2>1. 依赖检查</h2>
+        <div id="dependency-check"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>2. 基础功能测试</h2>
+        <div class="test-grid" id="basic-test"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>3. Logo功能测试</h2>
+        <div class="test-grid" id="logo-test"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>4. 样式设置测试</h2>
+        <div class="test-grid" id="style-test"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>5. 错误处理测试</h2>
+        <div id="error-test"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>6. 控制台日志</h2>
+        <div id="console" class="console"></div>
+    </div>
+
+    <div class="test-summary" id="test-summary"></div>
+
+    <!-- 加载依赖 -->
+    <!-- 1. 加载ZXing库 -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    
+    <!-- 2. 添加详细的ZXing API检查 -->
+    <script>
+        // 详细检查ZXing API
+        window.addEventListener('load', function() {
+            console.log('========= ZXing API 详细检查 =========');
+            
+            // 1. 检查基本对象
+            console.log('1. 基本对象检查:');
+            console.log('ZXing:', typeof ZXing);
+            console.log('ZXing原型链:', Object.getPrototypeOf(ZXing));
+            
+            // 2. 检查编码相关类
+            console.log('\n2. 编码相关类:');
+            console.log('BrowserQRCodeSvgWriter:', ZXing.BrowserQRCodeSvgWriter);
+            console.log('QRCodeWriter:', ZXing.QRCodeWriter);
+            
+            // 3. 检查hints相关
+            console.log('\n3. Hints相关:');
+            try {
+                const hints = new ZXing.EncodeHints();
+                console.log('EncodeHints实例:', hints);
+                console.log('EncodeHints方法:', Object.getOwnPropertyNames(Object.getPrototypeOf(hints)));
+            } catch (e) {
+                console.log('EncodeHints创建失败:', e);
+            }
+            
+            // 4. 检查Map实现
+            console.log('\n4. Map实现:');
+            try {
+                const map = new ZXing.Map();
+                console.log('Map实例:', map);
+                console.log('Map方法:', Object.getOwnPropertyNames(Object.getPrototypeOf(map)));
+            } catch (e) {
+                console.log('Map创建失败:', e);
+            }
+            
+            // 5. 检查错误纠正级别
+            console.log('\n5. 错误纠正级别:');
+            console.log('QRCodeErrorCorrectionLevel:', ZXing.QRCodeErrorCorrectionLevel);
+            
+            // 6. 检查编码提示类型
+            console.log('\n6. 编码提示类型:');
+            console.log('EncodeHintType:', ZXing.EncodeHintType);
+            
+            // 7. 创建一个简单的二维码测试
+            console.log('\n7. 简单二维码测试:');
+            try {
+                const writer = new ZXing.BrowserQRCodeSvgWriter();
+                console.log('Writer实例:', writer);
+                console.log('Writer方法:', Object.getOwnPropertyNames(Object.getPrototypeOf(writer)));
+                
+                // 尝试不同的hints创建方式
+                console.log('\n8. 尝试不同的hints创建方式:');
+                
+                // 方式1: 使用普通对象
+                const hints1 = {};
+                console.log('普通对象hints:', hints1);
+                
+                // 方式2: 使用Map
+                const hints2 = new Map();
+                console.log('原生Map hints:', hints2);
+                
+                // 方式3: 使用ZXing.EncodeHints
+                try {
+                    const hints3 = new ZXing.EncodeHints();
+                    console.log('ZXing.EncodeHints:', hints3);
+                } catch (e) {
+                    console.log('ZXing.EncodeHints创建失败:', e);
+                }
+                
+                // 方式4: 使用ZXing.Map
+                try {
+                    const hints4 = new ZXing.Map();
+                    console.log('ZXing.Map:', hints4);
+                } catch (e) {
+                    console.log('ZXing.Map创建失败:', e);
+                }
+                
+            } catch (e) {
+                console.log('二维码测试失败:', e);
+            }
+            
+            console.log('========= 检查结束 =========');
+        });
+    </script>
+    
+    <!-- 3. 加载基础组件 -->
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    
+    <!-- 4. 加载渲染器 -->
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+    
+    <!-- 5. 加载其他组件 -->
+    <script src="../src/generators/logo-manager.js"></script>
+    <script src="../src/renderers/adapters/legacyAdapter.js"></script>
+
+    <script>
+        // 测试状态
+        const testStats = {
+            total: 0,
+            passed: 0,
+            failed: 0,
+            warnings: 0
+        };
+
+        // 确保所有依赖都已加载
+        function verifyDependencies() {
+            const required = ['ZXing', 'SVGBuilder', 'ColorManager', 'ZXingRenderer'];
+            const missing = required.filter(dep => !window[dep]);
+            if (missing.length > 0) {
+                throw new Error(`缺少必需的依赖: ${missing.join(', ')}`);
+            }
+            return true;
+        }
+
+        // 等待所有脚本加载完成
+        function waitForScripts() {
+            return new Promise((resolve, reject) => {
+                const interval = setInterval(() => {
+                    try {
+                        if (verifyDependencies()) {
+                            clearInterval(interval);
+                            resolve();
+                        }
+                    } catch (error) {
+                        // 继续等待
+                    }
+                }, 100);
+
+                // 10秒后超时
+                setTimeout(() => {
+                    clearInterval(interval);
+                    reject(new Error('依赖加载超时'));
+                }, 10000);
+            });
+        }
+
+        // 测试工具函数
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const line = document.createElement('div');
+            line.className = `log-line ${type}`;
+            line.textContent = message;
+            console.appendChild(line);
+            
+            // 更新测试统计
+            if (type === 'success') testStats.passed++;
+            else if (type === 'error') testStats.failed++;
+            else if (type === 'warning') testStats.warnings++;
+        }
+
+        // 创建二维码显示容器
+        function createQRContainer(title) {
+            const container = document.createElement('div');
+            container.className = 'qr-container';
+            
+            const titleElem = document.createElement('p');
+            titleElem.textContent = title;
+            container.appendChild(titleElem);
+            
+            return container;
+        }
+
+        // 依赖检查
+        function checkDependencies() {
+            const dependencies = [
+                { name: 'ZXing', check: () => typeof ZXing !== 'undefined' },
+                { name: 'SVGBuilder', check: () => typeof SVGBuilder !== 'undefined' },
+                { name: 'ColorManager', check: () => typeof ColorManager !== 'undefined' },
+                { name: 'ZXingRenderer', check: () => typeof ZXingRenderer !== 'undefined' },
+                { name: 'LogoManager', check: () => typeof LogoManager !== 'undefined' },
+                { name: 'LegacyQRAdapter', check: () => typeof LegacyQRAdapter !== 'undefined' }
+            ];
+
+            testStats.total += dependencies.length;
+            const results = dependencies.map(dep => {
+                const passed = dep.check();
+                log(`${dep.name}: ${passed ? '✅' : '❌'}`, passed ? 'success' : 'error');
+                return passed;
+            });
+
+            return results.every(result => result);
+        }
+
+        // 基础功能测试
+        async function testBasicFeatures() {
+            const container = document.getElementById('basic-test');
+            const tests = [
+                {
+                    name: '文本二维码',
+                    content: '测试文本内容',
+                    options: { size: 200 }
+                },
+                {
+                    name: 'URL二维码',
+                    content: 'https://example.com',
+                    options: { size: 200 }
+                },
+                {
+                    name: 'WiFi二维码',
+                    content: 'WIFI:T:WPA;S:TestSSID;P:TestPassword;;',
+                    options: { size: 200 }
+                }
+            ];
+
+            testStats.total += tests.length;
+            for (const test of tests) {
+                try {
+                    // 创建渲染器实例
+                    const renderer = new window.ZXingRenderer(test.options);
+                    
+                    // 确保实例和方法存在
+                    if (!renderer || typeof renderer.generate !== 'function') {
+                        throw new Error('渲染器实例化失败或generate方法不存在');
+                    }
+
+                    // 生成二维码
+                    const qrElement = await renderer.generate(test.content);
+                    if (!qrElement) {
+                        throw new Error('生成的二维码元素为空');
+                    }
+                    
+                    // 添加调试信息
+                    console.log('生成的二维码元素:', qrElement);
+                    console.log('二维码元素类型:', qrElement.tagName);
+                    console.log('二维码元素内容:', qrElement.innerHTML);
+                    
+                    const qrContainer = createQRContainer(test.name);
+                    qrContainer.appendChild(qrElement);
+                    container.appendChild(qrContainer);
+                    
+                    log(`${test.name}生成: ✅`, 'success');
+                } catch (error) {
+                    console.error(`${test.name}生成错误:`, error);
+                    log(`${test.name}生成失败: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // Logo功能测试
+        async function testLogoFeatures() {
+            const container = document.getElementById('logo-test');
+            const logoDataUrl = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAFCAYAAACNbyblAAAAHElEQVQI12P4//8/w38GIAXDIBKE0DHxgljNBAAO9TXL0Y4OHwAAAABJRU5ErkJggg==';
+            
+            const tests = [
+                {
+                    name: '默认Logo',
+                    options: {
+                        size: 200,
+                        logo: logoDataUrl
+                    }
+                },
+                {
+                    name: '自定义Logo大小',
+                    options: {
+                        size: 200,
+                        logo: logoDataUrl,
+                        logoSize: 0.3
+                    }
+                }
+            ];
+
+            testStats.total += tests.length;
+            for (const test of tests) {
+                try {
+                    // 创建渲染器实例
+                    const renderer = new window.ZXingRenderer(test.options);
+                    
+                    // 确保实例和方法存在
+                    if (!renderer || typeof renderer.generate !== 'function') {
+                        throw new Error('渲染器实例化失败或generate方法不存在');
+                    }
+
+                    // 生成二维码
+                    const qrElement = await renderer.generate('测试Logo功能');
+                    if (!qrElement) {
+                        throw new Error('生成的二维码元素为空');
+                    }
+                    
+                    const qrContainer = createQRContainer(test.name);
+                    qrContainer.appendChild(qrElement);
+                        container.appendChild(qrContainer);
+                        
+                    log(`${test.name}测试: ✅`, 'success');
+                } catch (error) {
+                    console.error(`${test.name}测试错误:`, error);
+                    log(`${test.name}测试失败: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // 样式设置测试
+        async function testStyleFeatures() {
+            const container = document.getElementById('style-test');
+            const tests = [
+                {
+                    name: '自定义颜色',
+                    options: {
+                        size: 200,
+                        foreground: '#FF0000',
+                        background: '#FFFF00'
+                    }
+                },
+                {
+                    name: '圆角效果',
+                    options: {
+                        size: 200,
+                        cornerRadius: 10
+                    }
+                },
+                {
+                    name: '自定义边距',
+                    options: {
+                        size: 200,
+                        margin: 2
+                    }
+                }
+            ];
+
+            testStats.total += tests.length;
+            for (const test of tests) {
+                try {
+                    // 创建渲染器实例
+                    const renderer = new window.ZXingRenderer(test.options);
+                    
+                    // 确保实例和方法存在
+                    if (!renderer || typeof renderer.generate !== 'function') {
+                        throw new Error('渲染器实例化失败或generate方法不存在');
+                    }
+
+                    // 生成二维码
+                    const qrElement = await renderer.generate('测试样式设置');
+                    if (!qrElement) {
+                        throw new Error('生成的二维码元素为空');
+                    }
+                    
+                    const qrContainer = createQRContainer(test.name);
+                    qrContainer.appendChild(qrElement);
+                    container.appendChild(qrContainer);
+                    
+                    log(`${test.name}测试: ✅`, 'success');
+                } catch (error) {
+                    console.error(`${test.name}测试错误:`, error);
+                    log(`${test.name}测试失败: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        // 错误处理测试
+        async function testErrorHandling() {
+            const container = document.getElementById('error-test');
+            const tests = [
+                {
+                    name: '空内容测试',
+                    content: '',
+                    expectedError: '内容不能为空'
+                },
+                {
+                    name: '无效大小测试',
+                    content: 'test',
+                    options: { size: -100 },
+                    expectedError: '无效的二维码大小'
+                }
+            ];
+
+            testStats.total += tests.length;
+            for (const test of tests) {
+                try {
+                    const renderer = new window.ZXingRenderer(test.options);
+                    await renderer.generate(test.content);
+                    log(`${test.name}: ❌ (应该抛出错误)`, 'error');
+                } catch (error) {
+                    if (error.message.includes(test.expectedError)) {
+                        log(`${test.name}: ✅ (正确捕获错误)`, 'success');
+                    } else {
+                        log(`${test.name}: ❌ (错误消息不匹配)`, 'error');
+                    }
+                }
+            }
+        }
+
+        // 更新测试统计
+        function updateTestSummary() {
+            const summary = document.getElementById('test-summary');
+            summary.innerHTML = `
+                <h3>测试统计</h3>
+                <p>总计: ${testStats.total} 项测试</p>
+                <p style="color: #155724">通过: ${testStats.passed} 项</p>
+                <p style="color: #721c24">失败: ${testStats.failed} 项</p>
+                <p style="color: #856404">警告: ${testStats.warnings} 项</p>
+            `;
+        }
+
+        // 运行所有测试
+        async function runTests() {
+            try {
+                log('等待依赖加载...');
+                await waitForScripts();
+                log('所有依赖加载完成', 'success');
+            
+            // 1. 依赖检查
+                const dependenciesOk = checkDependencies();
+                if (!dependenciesOk) {
+                    log('依赖检查失败，终止测试', 'error');
+                    return;
+                }
+                log('依赖检查通过', 'success');
+                
+                // 2. 基础功能测试
+                await testBasicFeatures();
+                
+                // 3. Logo功能测试
+                await testLogoFeatures();
+                
+                // 4. 样式设置测试
+                await testStyleFeatures();
+                
+                // 5. 错误处理测试
+                await testErrorHandling();
+                
+                // 更新测试统计
+                updateTestSummary();
+                
+                log('所有测试完成', 'success');
+            } catch (error) {
+                console.error('测试过程中出错:', error);
+                log(`测试过程中出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载完成后运行测试
+        window.addEventListener('load', runTests);
+    </script>
+</body>
+</html> 

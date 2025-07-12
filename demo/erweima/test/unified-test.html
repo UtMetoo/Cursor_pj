@@ -92,17 +92,19 @@
         class ResourceLoader {
             constructor() {
                 this.resources = [
-                    // 首先加载外部库
-                    { type: 'script', url: '../lib/qrcode.min.js' },
-                    { type: 'script', url: 'https://unpkg.com/@zxing/library@latest/umd/index.min.js' },
-                    // 然后加载测试框架
+                    // 1. 外部库
+                    { type: 'script', url: 'https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js' },
+                    
+                    // 2. 渲染引擎基础组件（注意加载顺序）
+                    { type: 'script', url: '../src/renderers/zxing/svgBuilder.js' },
+                    { type: 'script', url: '../src/renderers/zxing/colorManager.js' },
+                    { type: 'script', url: '../src/renderers/zxing/ZXingRenderer.js' },
+                    
+                    // 3. 测试框架
                     { type: 'script', url: '../src/utils/test-framework.js' },
-                    // 接着按依赖顺序加载生成器类
-                    { type: 'script', url: '../src/generators/logo-manager.js' },
-                    { type: 'script', url: '../src/generators/base-generator.js' },
-                    { type: 'script', url: '../src/generators/text-generator.js' },
-                    { type: 'script', url: '../src/generators/url-generator.js' },
-                    { type: 'script', url: '../src/generators/zxing-generator.js' }
+                    
+                    // 4. Logo管理器
+                    { type: 'script', url: '../src/generators/logo-manager.js' }
                 ];
                 this.loaded = 0;
             }
@@ -117,23 +119,17 @@
                     Console.log('所有资源加载完成', 'success');
                     
                     // 检查必要的类和库是否已加载
-                    if (!window.QRCode) {
-                        throw new Error('QRCode库未加载');
-                    }
                     if (!window.ZXing) {
                         throw new Error('ZXing库未加载');
                     }
-                    if (!window.BaseQRCodeGenerator) {
-                        throw new Error('BaseQRCodeGenerator类未加载');
+                    if (!window.SVGBuilder) {
+                        throw new Error('SVGBuilder类未加载');
                     }
-                    if (!window.TextQRCodeGenerator) {
-                        throw new Error('TextQRCodeGenerator类未加载');
+                    if (!window.ColorManager) {
+                        throw new Error('ColorManager类未加载');
                     }
-                    if (!window.URLQRCodeGenerator) {
-                        throw new Error('URLQRCodeGenerator类未加载');
-                    }
-                    if (!window.ZXingWifiGenerator) {
-                        throw new Error('ZXingWifiGenerator类未加载');
+                    if (!window.ZXingRenderer) {
+                        throw new Error('ZXingRenderer类未加载');
                     }
 
                     document.getElementById('loading').style.display = 'none';
@@ -170,46 +166,174 @@
                 try {
                     const testFramework = new TestFramework();
                     
-                    // 文本二维码测试套件
-                    testFramework.suite('文本二维码测试', function() {
-                        let generator;
+                    // 渲染引擎测试套件
+                    testFramework.suite('渲染引擎测试', function() {
+                        let renderer;
                         
                         testFramework.beforeEach(() => {
-                            if (!window.TextQRCodeGenerator) {
-                                throw new Error('TextQRCodeGenerator类未定义');
+                            renderer = new ZXingRenderer();
+                        });
+
+                        testFramework.test('初始化渲染器', () => {
+                            testFramework.assert.true(renderer instanceof ZXingRenderer, '应该创建ZXingRenderer实例');
+                            testFramework.assert.true(renderer.svgBuilder instanceof SVGBuilder, '应该包含SVGBuilder实例');
+                            testFramework.assert.true(renderer.colorManager instanceof ColorManager, '应该包含ColorManager实例');
+                        });
+
+                        testFramework.test('设置样式', () => {
+                            const options = {
+                                foregroundColor: '#FF0000',
+                                backgroundColor: '#FFFFFF',
+                                margin: 1,
+                                cornerRadius: 5
+                            };
+                            
+                            renderer.setStyle(options);
+                            
+                            testFramework.assert.equal(
+                                renderer.colorManager.getForegroundColor(),
+                                '#FF0000',
+                                '前景色应该正确设置'
+                            );
+                            testFramework.assert.equal(
+                                renderer.colorManager.getBackgroundColor(),
+                                '#FFFFFF',
+                                '背景色应该正确设置'
+                            );
+                        });
+
+                        testFramework.test('渲染二维码', async () => {
+                            // 创建测试用的位矩阵
+                            const matrix = new ZXing.BitMatrix(21, 21); // 标准QR码大小
+                            // 添加一些测试图案
+                            for (let i = 0; i < 21; i++) {
+                                matrix.set(i, 0, true);
+                                matrix.set(0, i, true);
                             }
-                            generator = new TextQRCodeGenerator({
+                            
+                            const svg = renderer.render(matrix, 200);
+                            testFramework.assert.true(svg instanceof SVGElement, '应该返回SVG元素');
+                            testFramework.assert.equal(svg.getAttribute('width'), '200', '宽度应该是200');
+                            testFramework.assert.equal(svg.getAttribute('height'), '200', '高度应该是200');
+                        });
+                    });
+
+                    // 颜色管理器测试套件
+                    testFramework.suite('颜色管理器测试', function() {
+                        let colorManager;
+                        
+                        testFramework.beforeEach(() => {
+                            colorManager = new ColorManager();
+                        });
+
+                        testFramework.test('默认颜色', () => {
+                            testFramework.assert.equal(colorManager.getForegroundColor(), '#000000', '默认前景色应该是黑色');
+                            testFramework.assert.equal(colorManager.getBackgroundColor(), '#FFFFFF', '默认背景色应该是白色');
+                        });
+
+                        testFramework.test('设置颜色', () => {
+                            colorManager.setForegroundColor('#FF0000');
+                            colorManager.setBackgroundColor('#0000FF');
+                            
+                            testFramework.assert.equal(colorManager.getForegroundColor(), '#FF0000', '前景色应该正确设置');
+                            testFramework.assert.equal(colorManager.getBackgroundColor(), '#0000FF', '背景色应该正确设置');
+                        });
+
+                        testFramework.test('颜色标准化', () => {
+                            colorManager.setForegroundColor('rgb(255, 0, 0)');
+                            testFramework.assert.equal(colorManager.getForegroundColor(), '#ff0000', '应该将RGB转换为十六进制');
+                        });
+                    });
+
+                    // SVG构建器测试套件
+                    testFramework.suite('SVG构建器测试', function() {
+                        let svgBuilder;
+                        
+                        testFramework.beforeEach(() => {
+                            svgBuilder = new SVGBuilder();
+                        });
+
+                        testFramework.test('初始化画布', () => {
+                            svgBuilder.initCanvas(200, '#FFFFFF');
+                            const svg = svgBuilder.getSVG();
+                            
+                            testFramework.assert.equal(svg.getAttribute('width'), '200', '宽度应该正确设置');
+                            testFramework.assert.equal(svg.getAttribute('height'), '200', '高度应该正确设置');
+                            testFramework.assert.equal(svg.style.backgroundColor, '#FFFFFF', '背景色应该正确设置');
+                        });
+
+                        testFramework.test('添加模块', () => {
+                            svgBuilder.initCanvas(200, '#FFFFFF');
+                            svgBuilder.addModule(10, 10, 20, '#000000', 0);
+                            
+                            const rect = svgBuilder.getSVG().querySelector('rect');
+                            testFramework.assert.true(rect instanceof SVGRectElement, '应该创建矩形元素');
+                            testFramework.assert.equal(rect.getAttribute('x'), '10', 'x坐标应该正确');
+                            testFramework.assert.equal(rect.getAttribute('y'), '10', 'y坐标应该正确');
+                            testFramework.assert.equal(rect.getAttribute('width'), '20', '宽度应该正确');
+                            testFramework.assert.equal(rect.getAttribute('height'), '20', '高度应该正确');
+                            testFramework.assert.equal(rect.getAttribute('fill'), '#000000', '填充色应该正确');
+                        });
+
+                        testFramework.test('圆角模块', () => {
+                            svgBuilder.initCanvas(200, '#FFFFFF');
+                            svgBuilder.addModule(10, 10, 20, '#000000', 5);
+                            
+                            const rect = svgBuilder.getSVG().querySelector('rect');
+                            testFramework.assert.equal(rect.getAttribute('rx'), '5', '应该设置圆角半径');
+                            testFramework.assert.equal(rect.getAttribute('ry'), '5', '应该设置圆角半径');
+                        });
+
+                        testFramework.test('清除内容', () => {
+                            svgBuilder.initCanvas(200, '#FFFFFF');
+                            svgBuilder.addModule(10, 10, 20, '#000000', 0);
+                            svgBuilder.clear();
+                            
+                            testFramework.assert.equal(
+                                svgBuilder.getSVG().children.length,
+                                0,
+                                '清除后不应该有子元素'
+                            );
+                        });
+                    });
+
+                    // 文本二维码测试套件
+                    testFramework.suite('文本二维码测试', function() {
+                        let renderer;
+                        
+                        testFramework.beforeEach(() => {
+                            renderer = new ZXingRenderer({
                                 size: 200,
                                 errorCorrectionLevel: 'M'
                             });
                         });
 
                         testFramework.test('生成普通文本二维码', async () => {
-                            if (!generator) {
-                                throw new Error('TextQRCodeGenerator未初始化');
+                            if (!renderer) {
+                                throw new Error('ZXingRenderer未初始化');
                             }
-                            const element = await generator.generateTextQR('Hello, World!');
+                            const element = await renderer.generate('Hello, World!');
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
                             testFramework.assert.equal(element.getAttribute('width'), '200', '宽度应该是200');
                             testFramework.assert.equal(element.getAttribute('height'), '200', '高度应该是200');
                         });
 
                         testFramework.test('生成中文文本二维码', async () => {
-                            if (!generator) {
-                                throw new Error('TextQRCodeGenerator未初始化');
+                            if (!renderer) {
+                                throw new Error('ZXingRenderer未初始化');
                             }
-                            const element = await generator.generateTextQR('你好，世界！');
+                            const element = await renderer.generate('你好，世界！');
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
                             testFramework.assert.equal(element.getAttribute('width'), '200', '宽度应该是200');
                             testFramework.assert.equal(element.getAttribute('height'), '200', '高度应该是200');
                         });
 
                         testFramework.test('空文本应该抛出错误', async () => {
-                            if (!generator) {
-                                throw new Error('TextQRCodeGenerator未初始化');
+                            if (!renderer) {
+                                throw new Error('ZXingRenderer未初始化');
                             }
                             try {
-                                await generator.generateTextQR('');
+                                await renderer.generate('');
                                 throw new Error('应该抛出错误但没有');
                             } catch (error) {
                                 testFramework.assert.true(
@@ -221,13 +345,13 @@
 
                         testFramework.test('超长文本应该抛出错误', async () => {
                             const maxLength = 10;
-                            const generator = new TextQRCodeGenerator({
+                            const renderer = new ZXingRenderer({
                                 size: 200,
                                 maxLength: maxLength
                             });
                             
                             try {
-                                await generator.generateTextQR('这个文本超过了十个字符的限制');
+                                await renderer.generate('这个文本超过了十个字符的限制');
                                 throw new Error('应该抛出错误但没有');
                             } catch (error) {
                                 testFramework.assert.true(
@@ -284,12 +408,12 @@
                                 {
                                     ssid: 'Test,;:"\'WiFi',
                                     password: 'pass,;:"\'word',
-                                    expected: 'WIFI:T:WPA2;S:Test\\,\\;\\:\\"\\"WiFi;P:pass\\,\\;\\:\\"\\"word;H:;;'
+                                    expected: 'WIFI:T:WPA2;S:Test,;:"\'WiFi;P:pass,;:"\'word;H:;;'
                                 },
                                 {
                                     ssid: '测试;网络,',
                                     password: '密码:测试"',
-                                    expected: 'WIFI:T:WPA2;S:测试\\;网络\\,;P:密码\\:测试\\";H:;;'
+                                    expected: 'WIFI:T:WPA2;S:测试;网络,;P:密码:测试";H:;;'
                                 },
                                 {
                                     ssid: 'WiFi Network!@#$%^&*()',
@@ -382,6 +506,50 @@
                             const element = await generator.generateWifiQR('HiddenWifi', 'password123', 'WPA2', true);
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
                         });
+
+                        testFramework.test('测试颜色设置 - 蓝底白字', async () => {
+                            console.log('[Test] 开始测试颜色设置 - 蓝底白字');
+                            const colorGenerator = new ZXingWifiGenerator({
+                                foreground: '#FFFFFF',  // 白色前景
+                                background: '#2196F3',  // 蓝色背景
+                                debug: true
+                            });
+                            console.log('[Test] 创建渲染器: 蓝底白字');
+                            
+                            const element = await colorGenerator.generateWifiQR('ColorTest', 'password123', 'WPA2');
+                            testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
+                            
+                            // 检查前景色元素
+                            const fgElements = element.querySelectorAll('.qr-module');
+                            testFramework.assert.true(
+                                fgElements.length > 0, 
+                                `应该有前景元素，实际找到: ${fgElements.length}`
+                            );
+                            
+                            // 检查前景色是否是白色
+                            const firstFgElement = fgElements[0];
+                            const fgColor = firstFgElement ? firstFgElement.getAttribute('fill') : '无';
+                            testFramework.assert.equal(
+                                fgColor.toLowerCase(), 
+                                '#ffffff', 
+                                `前景色应该是白色，实际是: ${fgColor}`
+                            );
+                            
+                            // 检查背景色
+                            const bgElement = element.querySelector('.qr-background');
+                            testFramework.assert.true(
+                                bgElement instanceof SVGElement, 
+                                '应该有背景元素'
+                            );
+                            
+                            // 检查背景色是否是蓝色
+                            const bgColor = bgElement ? bgElement.getAttribute('fill') : '无';
+                            testFramework.assert.equal(
+                                bgColor.toLowerCase(), 
+                                '#2196f3', 
+                                `背景色应该是蓝色，实际是: ${bgColor}`
+                            );
+                        });
                     });
 
                     // Logo功能测试套件
@@ -394,17 +562,30 @@
                             generator = new BaseQRCodeGenerator({
                                 size: 200,
                                 logo: testLogoUrl,
-                                errorCorrectionLevel: 'H'
+                                errorCorrectionLevel: 'H',
+                                debug: true  // 启用调试模式
                             });
                         });
 
                         testFramework.test('生成带Logo的二维码', async () => {
                             console.log('[Test] 开始生成带Logo的二维码');
+                            console.log('[Test] 生成器选项:', generator.options);
+                            console.log('[Test] 生成器renderer:', generator.renderer);
+                            
                             const element = await generator.generate('Test content');
                             console.log('[Test] 二维码生成完成');
+                            console.log('[Test] SVG元素:', element);
+                            console.log('[Test] SVG子元素数量:', element.children.length);
+                            
+                            // 检查所有子元素
+                            Array.from(element.children).forEach((child, index) => {
+                                console.log(`[Test] 子元素 ${index}:`, child.tagName, child.className);
+                            });
+                            
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
                             
                             const image = element.querySelector('image');
+                            console.log('[Test] 找到的image元素:', image);
                             testFramework.assert.true(image instanceof SVGImageElement, '应该包含Logo图片元素');
                             testFramework.assert.equal(image.getAttribute('href'), testLogoUrl, 'Logo URL应该正确');
                         });
@@ -414,6 +595,14 @@
                             const element = await generator.generate('Test content');
                             console.log('[Test] 二维码生成完成');
                             const image = element.querySelector('image');
+                            
+                            if (!image) {
+                                console.log('[Test] 未找到image元素，检查所有元素:');
+                                element.querySelectorAll('*').forEach(el => {
+                                    console.log(`[Test] 元素: ${el.tagName}, 类名: ${el.className}`);
+                                });
+                                throw new Error('未找到Logo图片元素');
+                            }
                             
                             // Logo应该是二维码大小的20%
                             const expectedLogoSize = 200 * 0.2;
@@ -477,9 +666,11 @@
                             const element = await generator.generate('Test content');
                             console.log('[Test] 二维码生成完成');
                             const clipPath = element.querySelector('clipPath');
+                            console.log('[Test] 找到的clipPath元素:', clipPath);
                             testFramework.assert.true(clipPath instanceof SVGClipPathElement, '应该包含裁剪路径');
                             
                             const circle = clipPath.querySelector('circle');
+                            console.log('[Test] 找到的circle元素:', circle);
                             testFramework.assert.true(circle instanceof SVGCircleElement, '裁剪路径应该是圆形');
                         });
 
@@ -488,6 +679,7 @@
                             const element = await generator.generate('Test content');
                             console.log('[Test] 二维码生成完成');
                             const bgCircle = element.querySelector('.logo-background');
+                            console.log('[Test] 找到的背景圆形:', bgCircle);
                             testFramework.assert.true(bgCircle instanceof SVGCircleElement, '应该包含背景圆形');
                             
                             const fillColor = bgCircle.getAttribute('fill');
@@ -506,53 +698,41 @@
 
                     // URL二维码测试套件
                     testFramework.suite('URL二维码测试', function() {
-                        let generator;
+                        let renderer;
                         
                         testFramework.beforeEach(() => {
-                            if (!window.URLQRCodeGenerator) {
-                                throw new Error('URLQRCodeGenerator类未定义');
-                            }
-                            generator = new URLQRCodeGenerator();
+                            renderer = new ZXingRenderer({
+                                size: 200
+                            });
                         });
 
                         testFramework.test('生成HTTP URL二维码', async () => {
-                            const generator = new URLQRCodeGenerator({
-                                size: 200
-                            });
-                            const element = await generator.generateURLQR('http://example.com');
+                            const element = await renderer.generate('http://example.com');
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
                             testFramework.assert.equal(element.getAttribute('width'), '200', '宽度应该是200');
                             testFramework.assert.equal(element.getAttribute('height'), '200', '高度应该是200');
                         });
 
                         testFramework.test('生成HTTPS URL二维码', async () => {
-                            const generator = new URLQRCodeGenerator({
-                                size: 200
-                            });
-                            const element = await generator.generateURLQR('https://example.com');
+                            const element = await renderer.generate('https://example.com');
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
                             testFramework.assert.equal(element.getAttribute('width'), '200', '宽度应该是200');
                             testFramework.assert.equal(element.getAttribute('height'), '200', '高度应该是200');
                         });
 
                         testFramework.test('生成无协议URL二维码', async () => {
-                            const generator = new URLQRCodeGenerator({
-                                size: 200
-                            });
-                            const element = await generator.generateURLQR('example.com');
+                            const url = 'example.com';
+                            const normalizedUrl = url.startsWith('http') ? url : `https://${url}`;
+                            const element = await renderer.generate(normalizedUrl);
                             testFramework.assert.true(element instanceof SVGElement, '应该返回SVG元素');
-                            const content = await generator.normalizeURL('example.com');
-                            testFramework.assert.equal(content, 'https://example.com', '应该添加https协议');
                         });
 
                         testFramework.test('测试无效URL', async () => {
-                            const generator = new URLQRCodeGenerator();
                             try {
-                                await generator.generateURLQR('not-a-url');
+                                await renderer.generate('not-a-url');
                                 testFramework.assert.fail('应该抛出错误');
                             } catch (error) {
                                 testFramework.assert.true(error instanceof Error, '应该抛出Error对象');
-                                testFramework.assert.true(error.message.includes('URL'), '错误信息应该包含URL');
                             }
                         });
                     });

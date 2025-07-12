@@ -5,6 +5,7 @@
 
 import { renderSVGToCanvas, showToast, showError } from './utils.js';
 import { getElements } from './dom.js';
+import { QRGeneratorFactory } from './generators/qrGeneratorFactory.js';
 
 /**
  * 处理二维码操作（下载或复制）
@@ -53,10 +54,6 @@ export async function processQRCode(action, options) {
 
 /**
  * 处理Logo上传
- * @param {Event} event - 文件选择事件
- * @param {Object} options - 二维码选项
- * @param {Function} updateQRCode - 更新二维码的回调函数
- * @param {Object} generators - 生成器对象
  */
 export async function handleLogoUpload(event, options, updateQRCode, generators) {
     const file = event.target.files[0];
@@ -80,32 +77,24 @@ export async function handleLogoUpload(event, options, updateQRCode, generators)
         options.logo = logoUrl;
 
         // 更新所有生成器的Logo选项
-        Object.values(generators).forEach(generator => {
-            if (generator.options) {
-                generator.options.logo = logoUrl;
-            }
-        });
-
-        // 显示移除按钮
-        getElements().removeLogoBtn.classList.remove('hidden');
+        QRGeneratorFactory.updateGeneratorsOption(generators, 'logo', logoUrl);
 
         // 重新生成二维码
         await updateQRCode();
         
-        showToast('Logo添加成功');
+        // 显示移除按钮
+        const elements = getElements();
+        elements.removeLogoBtn.classList.remove('hidden');
+        
+        showToast('Logo已添加');
     } catch (error) {
-        console.error('处理Logo上传时出错:', error);
-        showError('Logo上传失败: ' + error.message, getElements().preview);
-        // 清空文件输入
-        event.target.value = '';
+        console.error('上传Logo时出错:', error);
+        showError('上传Logo失败: ' + error.message, getElements().preview);
     }
 }
 
 /**
  * 移除Logo
- * @param {Object} options - 二维码选项
- * @param {Function} updateQRCode - 更新二维码的回调函数
- * @param {Object} generators - 生成器对象
  */
 export async function removeLogo(options, updateQRCode, generators) {
     try {
@@ -115,11 +104,7 @@ export async function removeLogo(options, updateQRCode, generators) {
         options.logo = null;
 
         // 更新所有生成器的Logo选项
-        Object.values(generators).forEach(generator => {
-            if (generator.options) {
-                generator.options.logo = null;
-            }
-        });
+        QRGeneratorFactory.updateGeneratorsOption(generators, 'logo', null);
 
         // 隐藏移除按钮
         elements.removeLogoBtn.classList.add('hidden');

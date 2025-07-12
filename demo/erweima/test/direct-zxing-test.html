@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>直接ZXing测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+        }
+        .test-container {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .test-item {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .qr-display {
+            width: 200px;
+            height: 200px;
+            margin: 1rem auto;
+            border: 1px solid #ddd;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .svg-code {
+            background: #f5f5f5;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 0.8rem;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 1rem;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 2rem 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>直接ZXing测试</h1>
+    
+    <div class="test-container">
+        <div class="test-item">
+            <h3>原始ZXing SVG</h3>
+            <div class="qr-display" id="original"></div>
+            <div class="svg-code" id="original-code"></div>
+        </div>
+        
+        <div class="test-item">
+            <h3>手动修改颜色后</h3>
+            <div class="qr-display" id="modified"></div>
+            <div class="svg-code" id="modified-code"></div>
+        </div>
+    </div>
+    
+    <div class="log" id="log"></div>
+
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+
+    <script>
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + msg + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function runDirectTest() {
+            try {
+                // 等待ZXing加载
+                while (!window.ZXing) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                log('开始直接ZXing测试...');
+
+                // 1. 创建原始ZXing SVG
+                log('创建原始ZXing SVG...');
+                const writer = new ZXing.BrowserQRCodeSvgWriter();
+                const originalSvg = writer.write('直接测试', 200, 200);
+                
+                // 显示原始SVG
+                document.getElementById('original').appendChild(originalSvg.cloneNode(true));
+                document.getElementById('original-code').textContent = originalSvg.outerHTML;
+                log('原始SVG创建完成');
+                
+                // 分析原始SVG结构
+                log('分析原始SVG结构...');
+                const allElements = originalSvg.querySelectorAll('*');
+                log(`总共有 ${allElements.length} 个元素`);
+                
+                allElements.forEach((el, index) => {
+                    const tag = el.tagName;
+                    const fill = el.getAttribute('fill');
+                    const style = el.getAttribute('style');
+                    log(`元素${index}: ${tag}, fill=${fill}, style=${style}`);
+                });
+
+                // 2. 手动修改颜色
+                log('手动修改颜色...');
+                const modifiedSvg = originalSvg.cloneNode(true);
+                
+                // 方法1: 移除所有现有样式
+                const existingStyles = modifiedSvg.querySelectorAll('style');
+                existingStyles.forEach(style => {
+                    log(`移除现有样式: ${style.textContent}`);
+                    style.remove();
+                });
+                
+                // 方法2: 强制修改所有元素
+                const allModElements = modifiedSvg.querySelectorAll('*');
+                allModElements.forEach((el, index) => {
+                    const tag = el.tagName.toLowerCase();
+                    if (['rect', 'path', 'circle', 'polygon'].includes(tag)) {
+                        const oldFill = el.getAttribute('fill');
+                        el.setAttribute('fill', '#FF0000');
+                        el.style.fill = '#FF0000';
+                        log(`强制修改元素${index} ${tag}: ${oldFill} -> #FF0000`);
+                    }
+                });
+                
+                // 方法3: 添加强制样式
+                const forceStyle = document.createElementNS("http://www.w3.org/2000/svg", "style");
+                forceStyle.textContent = `
+                    * { fill: #FF0000 !important; }
+                    rect { fill: #FF0000 !important; }
+                    path { fill: #FF0000 !important; }
+                    circle { fill: #FF0000 !important; }
+                    polygon { fill: #FF0000 !important; }
+                `;
+                modifiedSvg.insertBefore(forceStyle, modifiedSvg.firstChild);
+                log('添加强制样式');
+                
+                // 方法4: 设置SVG根元素样式
+                modifiedSvg.style.backgroundColor = '#FFFF00';
+                modifiedSvg.setAttribute('style', 'background-color: #FFFF00 !important;');
+                log('设置SVG背景色');
+                
+                // 显示修改后的SVG
+                document.getElementById('modified').appendChild(modifiedSvg);
+                document.getElementById('modified-code').textContent = modifiedSvg.outerHTML;
+                log('修改后的SVG显示完成');
+                
+                log('直接ZXing测试完成！');
+                
+            } catch (error) {
+                log('测试失败: ' + error.message);
+                console.error('测试错误:', error);
+            }
+        }
+
+        window.addEventListener('load', runDirectTest);
+    </script>
+</body>
+</html> 

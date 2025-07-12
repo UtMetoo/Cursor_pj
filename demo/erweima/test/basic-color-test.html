@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>基础颜色测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 2rem;
+            text-align: center;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin: 2rem 0;
+            max-width: 900px;
+            margin: 2rem auto;
+        }
+        .test-item {
+            border: 2px solid #333;
+            padding: 1rem;
+            border-radius: 8px;
+        }
+        .test-item h3 {
+            margin: 0 0 1rem 0;
+            color: #333;
+        }
+        .qr-display {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            border: 1px solid #ccc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .log {
+            background: #f0f0f0;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 2rem 0;
+            font-family: monospace;
+            text-align: left;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>基础颜色测试</h1>
+    
+    <div class="test-grid">
+        <div class="test-item">
+            <h3>默认黑白</h3>
+            <div class="qr-display" id="qr1"></div>
+        </div>
+        <div class="test-item">
+            <h3>红色前景</h3>
+            <div class="qr-display" id="qr2"></div>
+        </div>
+        <div class="test-item">
+            <h3>蓝色+黄色背景</h3>
+            <div class="qr-display" id="qr3"></div>
+        </div>
+    </div>
+    
+    <div class="log" id="log"></div>
+
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+
+    <script>
+        function log(msg) {
+            const logDiv = document.getElementById('log');
+            logDiv.innerHTML += new Date().toLocaleTimeString() + ': ' + msg + '\n';
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        async function runTest() {
+            try {
+                // 等待ZXing加载
+                while (!window.ZXing || !window.ZXingRenderer) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+                
+                log('开始基础颜色测试...');
+
+                // 测试1: 默认黑白
+                log('测试1: 默认黑白二维码');
+                const renderer1 = new ZXingRenderer({ size: 200 });
+                const qr1 = await renderer1.generate('默认黑白');
+                document.getElementById('qr1').appendChild(qr1);
+                log('默认黑白二维码生成完成');
+
+                // 测试2: 红色前景
+                log('测试2: 红色前景二维码');
+                const renderer2 = new ZXingRenderer({ 
+                    size: 200,
+                    foreground: '#FF0000',
+                    background: '#FFFFFF'
+                });
+                renderer2.colorManager.debug = true;
+                const qr2 = await renderer2.generate('红色前景');
+                document.getElementById('qr2').appendChild(qr2);
+                log('红色前景二维码生成完成');
+
+                // 测试3: 蓝色+黄色背景
+                log('测试3: 蓝色+黄色背景二维码');
+                const renderer3 = new ZXingRenderer({ 
+                    size: 200,
+                    foreground: '#0000FF',
+                    background: '#FFFF00'
+                });
+                renderer3.colorManager.debug = true;
+                const qr3 = await renderer3.generate('蓝色+黄色');
+                document.getElementById('qr3').appendChild(qr3);
+                log('蓝色+黄色背景二维码生成完成');
+
+                log('所有测试完成！');
+                
+            } catch (error) {
+                log('测试失败: ' + error.message);
+                console.error('测试错误:', error);
+            }
+        }
+
+        window.addEventListener('load', runTest);
+    </script>
+</body>
+</html> 

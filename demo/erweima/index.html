@@ -139,23 +139,21 @@
 
     <!-- 按顺序加载所有依赖 -->
     <!-- 1. 外部库 -->
-    <script src="lib/qrcode.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js" 
             onerror="console.error('ZXing库加载失败'); alert('二维码库加载失败，请检查网络连接');">
     </script>
     
-    <!-- 2. Logo管理器 -->
+    <!-- 2. 渲染引擎基础组件 -->
+    <script src="src/renderers/zxing/svgBuilder.js"></script>
+    <script src="src/renderers/zxing/colorManager.js"></script>
+    <script src="src/renderers/zxing/ZXingRenderer.js"></script>
+    
+    <!-- 3. Logo管理器 -->
     <script src="src/generators/logo-manager.js"></script>
     
-    <!-- 3. 基础生成器类 -->
-    <script src="src/generators/base-generator.js"></script>
-    
-    <!-- 4. 派生生成器类 -->
-    <script src="src/generators/zxing-generator.js"></script>
-    <script src="src/generators/text-generator.js"></script>
-    <script src="src/generators/url-generator.js"></script>
-    
-    <!-- 5. 主应用脚本 (使用ES模块) -->
-    <script type="module" src="src/js/app.js"></script>
+    <!-- 4. 主应用脚本 -->
+    <script type="module" src="src/js/app.js" 
+            onerror="console.error('ES模块加载失败'); alert('应用模块加载失败，请刷新页面重试');">
+    </script>
 </body>
 </html>

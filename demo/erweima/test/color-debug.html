@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>颜色功能调试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .debug-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .debug-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+        .debug-item h3 {
+            margin: 0 0 1rem 0;
+            color: #333;
+        }
+        .qr-container {
+            text-align: center;
+            margin: 1rem 0;
+        }
+        .console {
+            background: #1c1c1e;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 1rem 0;
+            font-size: 0.85rem;
+        }
+        .svg-info {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            margin: 1rem 0;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <h1>颜色功能调试</h1>
+    
+    <div class="debug-container">
+        <div class="debug-item">
+            <h3>默认黑白二维码</h3>
+            <div class="qr-container" id="default-qr"></div>
+            <div class="svg-info" id="default-info"></div>
+        </div>
+        
+        <div class="debug-item">
+            <h3>彩色二维码</h3>
+            <div class="qr-container" id="color-qr"></div>
+            <div class="svg-info" id="color-info"></div>
+        </div>
+    </div>
+    
+    <h2>调试日志</h2>
+    <div id="console" class="console"></div>
+
+    <!-- 加载ZXing库 -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    
+    <!-- 加载组件 -->
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+
+    <script>
+        // 日志函数
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const line = document.createElement('div');
+            line.style.color = type === 'error' ? '#ff6b6b' : 
+                              type === 'success' ? '#51cf66' : 
+                              type === 'warning' ? '#ffd43b' : '#74c0fc';
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // 分析SVG结构
+        function analyzeSVG(svg, label) {
+            log(`\n=== ${label} SVG分析 ===`, 'info');
+            log(`SVG尺寸: ${svg.getAttribute('width')}x${svg.getAttribute('height')}`, 'info');
+            
+            // 分析所有元素
+            const allElements = svg.querySelectorAll('*');
+            log(`总元素数: ${allElements.length}`, 'info');
+            
+            // 按标签分组
+            const elementCounts = {};
+            allElements.forEach(el => {
+                const tag = el.tagName.toLowerCase();
+                elementCounts[tag] = (elementCounts[tag] || 0) + 1;
+            });
+            
+            log(`元素统计: ${JSON.stringify(elementCounts)}`, 'info');
+            
+            // 分析rect元素
+            const rects = svg.querySelectorAll('rect');
+            log(`rect元素数: ${rects.length}`, 'info');
+            
+            if (rects.length > 0) {
+                // 分析前几个rect的属性
+                for (let i = 0; i < Math.min(5, rects.length); i++) {
+                    const rect = rects[i];
+                    log(`rect[${i}]: fill=${rect.getAttribute('fill')}, class=${rect.getAttribute('class') || 'none'}`, 'info');
+                }
+            }
+            
+            // 分析path元素
+            const paths = svg.querySelectorAll('path');
+            if (paths.length > 0) {
+                log(`path元素数: ${paths.length}`, 'info');
+                paths.forEach((path, i) => {
+                    log(`path[${i}]: fill=${path.getAttribute('fill')}, class=${path.getAttribute('class') || 'none'}`, 'info');
+                });
+            }
+            
+            // 分析style元素
+            const styles = svg.querySelectorAll('style');
+            if (styles.length > 0) {
+                log(`style元素数: ${styles.length}`, 'info');
+                styles.forEach((style, i) => {
+                    log(`style[${i}]: ${style.textContent}`, 'info');
+                });
+            }
+            
+            return {
+                totalElements: allElements.length,
+                elementCounts,
+                rects: rects.length,
+                paths: paths.length,
+                styles: styles.length
+            };
+        }
+
+        // 显示SVG信息
+        function displaySVGInfo(svg, infoElementId) {
+            const info = analyzeSVG(svg, infoElementId);
+            const infoElement = document.getElementById(infoElementId);
+            
+            infoElement.innerHTML = `
+                <strong>SVG结构分析:</strong><br>
+                总元素数: ${info.totalElements}<br>
+                rect元素: ${info.rects}<br>
+                path元素: ${info.paths}<br>
+                style元素: ${info.styles}<br>
+                <br>
+                <strong>元素统计:</strong><br>
+                ${Object.entries(info.elementCounts).map(([tag, count]) => `${tag}: ${count}`).join('<br>')}
+            `;
+        }
+
+        // 等待依赖加载
+        function waitForDependencies() {
+            return new Promise((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                const check = () => {
+                    attempts++;
+                    if (window.ZXing && window.ZXingRenderer) {
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        reject(new Error('依赖加载超时'));
+                    } else {
+                        setTimeout(check, 100);
+                    }
+                };
+                
+                check();
+            });
+        }
+
+        // 运行调试测试
+        async function runDebugTests() {
+            try {
+                log('等待依赖加载...', 'info');
+                await waitForDependencies();
+                log('依赖加载完成', 'success');
+
+                // 测试1: 默认黑白二维码
+                log('\n开始测试默认黑白二维码...', 'info');
+                const defaultRenderer = new ZXingRenderer({ size: 200 });
+                const defaultQR = await defaultRenderer.generate('默认黑白二维码测试');
+                
+                document.getElementById('default-qr').appendChild(defaultQR);
+                displaySVGInfo(defaultQR, 'default-info');
+                
+                // 测试2: 彩色二维码
+                log('\n开始测试彩色二维码...', 'info');
+                
+                // 启用调试模式
+                const colorRenderer = new ZXingRenderer({ 
+                    size: 200,
+                    foreground: '#FF6B6B',
+                    background: '#F1F3F4'
+                });
+                
+                // 手动启用ColorManager的调试模式
+                colorRenderer.colorManager.debug = true;
+                
+                const colorQR = await colorRenderer.generate('彩色二维码测试');
+                
+                document.getElementById('color-qr').appendChild(colorQR);
+                displaySVGInfo(colorQR, 'color-info');
+                
+                // 手动尝试应用颜色
+                log('\n手动尝试应用颜色...', 'info');
+                const manualColorQR = defaultQR.cloneNode(true);
+                
+                // 尝试不同的选择器
+                const selectors = [
+                    'rect',
+                    'rect:not(.qr-background)',
+                    'path',
+                    '*[fill="#000000"]',
+                    '*[fill="#000"]',
+                    '*[fill="black"]'
+                ];
+                
+                selectors.forEach(selector => {
+                    const elements = manualColorQR.querySelectorAll(selector);
+                    log(`选择器 "${selector}" 匹配到 ${elements.length} 个元素`, 'info');
+                });
+                
+                // 强制应用颜色
+                const allRects = manualColorQR.querySelectorAll('rect');
+                log(`强制修改所有rect元素颜色 (${allRects.length}个)`, 'info');
+                allRects.forEach((rect, i) => {
+                    const originalFill = rect.getAttribute('fill');
+                    rect.setAttribute('fill', '#FF6B6B');
+                    log(`rect[${i}]: ${originalFill} -> #FF6B6B`, 'info');
+                });
+                
+                // 添加强制修改后的二维码
+                const forceContainer = document.createElement('div');
+                forceContainer.innerHTML = '<h3>强制修改颜色后</h3>';
+                const qrContainer = document.createElement('div');
+                qrContainer.className = 'qr-container';
+                qrContainer.appendChild(manualColorQR);
+                forceContainer.appendChild(qrContainer);
+                document.querySelector('.debug-container').appendChild(forceContainer);
+                
+                log('调试测试完成', 'success');
+                
+            } catch (error) {
+                log(`调试测试失败: ${error.message}`, 'error');
+                console.error('调试测试错误:', error);
+            }
+        }
+
+        // 页面加载完成后运行测试
+        window.addEventListener('load', runDebugTests);
+    </script>
+</body>
+</html> 

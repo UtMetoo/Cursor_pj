@@ -254,7 +254,7 @@ header .subtitle {
   width: 300px; /* 默认尺寸，将由JavaScript动态控制 */
   height: 300px; /* 默认尺寸，将由JavaScript动态控制 */
   margin: 0 auto 1.8rem;
-  padding: 1.5rem;
+  padding: 0; /* 移除内边距，让SVG完全填充容器 */
   background: var(--surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
@@ -266,12 +266,11 @@ header .subtitle {
   position: relative;
   z-index: 1;
   /* [修复] 确保二维码预览区域大小与选择的尺寸匹配 */
-  width: auto !important;
-  height: auto !important;
   min-width: 200px;
   min-height: 200px;
   max-width: 500px;
   max-height: 500px;
+  overflow: hidden; /* 确保内容不会溢出 */
 }
 
 #qr-preview::before {

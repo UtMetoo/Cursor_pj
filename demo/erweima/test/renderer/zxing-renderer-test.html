@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ZXing渲染引擎测试</title>
+  <style>
+    body {
+      font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    .test-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 20px;
+      margin-top: 20px;
+    }
+    .test-case {
+      border: 1px solid #ccc;
+      padding: 15px;
+      border-radius: 8px;
+      text-align: center;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    }
+    .qr-preview {
+      width: 200px;
+      height: 200px;
+      margin: 10px auto;
+      border: 1px dashed #ccc;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .console {
+      background: #1c1c1e;
+      color: #fff;
+      padding: 10px;
+      border-radius: 4px;
+      font-family: monospace;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 10px;
+      text-align: left;
+      font-size: 12px;
+    }
+    button {
+      margin: 5px;
+      padding: 8px 16px;
+      border-radius: 4px;
+      background: #4a90e2;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    button:hover {
+      background: #3a80d2;
+    }
+  </style>
+</head>
+<body>
+  <h1>ZXing渲染引擎测试</h1>
+  <p>此页面用于测试新的二维码渲染引擎，以验证颜色应用和其他特性是否正常工作。</p>
+  
+  <div class="test-container" id="test-container"></div>
+  
+  <!-- 加载依赖库 -->
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
+  
+  <!-- 加载我们的渲染引擎 -->
+  <script src="../../src/renderers/zxing/svgBuilder.js"></script>
+  <script src="../../src/renderers/zxing/colorManager.js"></script>
+  <script src="../../src/renderers/zxing/ZXingRenderer.js"></script>
+  
+  <script>
+    // 测试用例
+    const testCases = [
+      { name: '黑白标准', foreground: '#000000', background: '#FFFFFF' },
+      { name: '蓝底白字', foreground: '#FFFFFF', background: '#2196F3' },
+      { name: '绿底黑字', foreground: '#000000', background: '#4CAF50' },
+      { name: '红底白字', foreground: '#FFFFFF', background: '#F44336' },
+      { name: '黄底黑字', foreground: '#000000', background: '#FFEB3B' },
+      { name: '紫底白字', foreground: '#FFFFFF', background: '#9C27B0' }
+    ];
+    
+    // 创建控制台组件
+    function createConsole() {
+      const consoleElem = document.createElement('div');
+      consoleElem.className = 'console';
+      
+      return {
+        element: consoleElem,
+        log: function(message) {
+          const line = document.createElement('div');
+          line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+          this.element.appendChild(line);
+          this.element.scrollTop = this.element.scrollHeight;
+        }
+      };
+    }
+    
+    async function runTests() {
+      const container = document.getElementById('test-container');
+      
+      for (const testCase of testCases) {
+        const testElement = document.createElement('div');
+        testElement.className = 'test-case';
+        
+        // 添加标题
+        const title = document.createElement('h3');
+        title.textContent = testCase.name;
+        testElement.appendChild(title);
+        
+        // 添加颜色信息
+        const colorInfo = document.createElement('p');
+        colorInfo.innerHTML = `前景色: <span style="color:${testCase.foreground}">${testCase.foreground}</span><br>背景色: <span style="color:${testCase.background}">${testCase.background}</span>`;
+        testElement.appendChild(colorInfo);
+        
+        // 创建控制台
+        const console = createConsole();
+        
+        // 创建预览区
+        const preview = document.createElement('div');
+        preview.className = 'qr-preview';
+        testElement.appendChild(preview);
+        
+        try {
+          // 创建渲染器
+          const renderer = new ZXingRenderer({
+            size: 200,
+            foreground: testCase.foreground,
+            background: testCase.background,
+            debug: true
+          });
+          
+          console.log(`创建渲染器: ${testCase.name}`);
+          
+          // 生成二维码
+          console.log("开始生成二维码...");
+          const svg = await renderer.generate('https://example.com/test-' + testCase.name);
+          preview.appendChild(svg);
+          console.log("二维码生成完成");
+          
+          // 检查颜色应用
+          const colorManager = new QRColorManager();
+          const colors = colorManager.extractColors(svg);
+          console.log(`应用的颜色 - 前景: ${colors.foreground}, 背景: ${colors.background}`);
+          
+          // 检查元素数量
+          const stats = colorManager.debugColors(svg);
+          console.log(`背景元素数量: ${stats.backgroundCount}, 前景元素数量: ${stats.foregroundCount}`);
+          
+          // 添加下载按钮
+          const downloadBtn = document.createElement('button');
+          downloadBtn.textContent = '下载PNG';
+          downloadBtn.onclick = async () => {
+            console.log("开始导出PNG...");
+            const pngUrl = await renderer.exportToPNG('https://example.com/test-' + testCase.name);
+            const link = document.createElement('a');
+            link.href = pngUrl;
+            link.download = `qrcode-${testCase.name}.png`;
+            link.click();
+            console.log("PNG下载完成");
+          };
+          testElement.appendChild(downloadBtn);
+          
+          // 添加SVG检查按钮
+          const checkBtn = document.createElement('button');
+          checkBtn.textContent = '检查SVG';
+          checkBtn.onclick = () => {
+            const svgCode = svg.outerHTML;
+            console.log('SVG结构:', svgCode);
+            console.log(`SVG元素数量: ${svg.querySelectorAll('*').length}`);
+            alert('SVG结构已输出到控制台');
+          };
+          testElement.appendChild(checkBtn);
+          
+        } catch (error) {
+          preview.textContent = '生成失败: ' + error.message;
+          console.log(`错误: ${error.message}`);
+        }
+        
+        testElement.appendChild(console.element);
+        container.appendChild(testElement);
+      }
+    }
+    
+    // 当页面加载完成后运行测试
+    window.addEventListener('DOMContentLoaded', runTests);
+  </script>
+</body>
+</html> 

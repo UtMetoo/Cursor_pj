@@ -15,44 +15,34 @@ const qrOptions = {
     cornerRadius: 0,
     logo: null,
     errorCorrectionLevel: 'H',
-    margin: 1
+    margin: 0.5
 };
 
 // 当前选中的二维码类型
 let currentType = 'text';
 
-// 二维码生成器实例
-let generators = {
-    text: new ZXingBaseGenerator({
-        width: qrOptions.size,
-        height: qrOptions.size,
-        errorCorrectionLevel: qrOptions.errorCorrectionLevel,
-        margin: qrOptions.margin,
-        logo: qrOptions.logo,
-        foreground: qrOptions.foreground,
-        background: qrOptions.background,
-        cornerRadius: qrOptions.cornerRadius
-    }),
-    wifi: new ZXingWifiGenerator({
-        width: qrOptions.size,
-        height: qrOptions.size,
-        errorCorrectionLevel: qrOptions.errorCorrectionLevel,
-        margin: qrOptions.margin,
-        logo: qrOptions.logo,
-        foreground: qrOptions.foreground,
-        background: qrOptions.background,
-        cornerRadius: qrOptions.cornerRadius
-    }),
-    url: new ZXingBaseGenerator({
-        width: qrOptions.size,
-        height: qrOptions.size,
-        errorCorrectionLevel: qrOptions.errorCorrectionLevel,
-        margin: qrOptions.margin,
-        logo: qrOptions.logo,
-        foreground: qrOptions.foreground,
-        background: qrOptions.background,
-        cornerRadius: qrOptions.cornerRadius
-    })
+// 创建渲染器实例
+const renderer = new ZXingRenderer(qrOptions);
+
+// 二维码生成器实例 - 统一使用一个渲染器，WiFi使用适配器
+const generators = {
+    text: renderer,
+    url: renderer,
+    wifi: {
+        generateWifiQR: async function(ssid, password, encryption = 'WPA2', hidden = false) {
+            // 生成WiFi连接字符串
+            if (!ssid) throw new Error('SSID不能为空');
+            if (ssid.includes(';')) {
+                throw new Error('SSID不能包含分号(;)');
+            }
+            if ((encryption === 'WPA' || encryption === 'WPA2' || encryption === 'WPA3' || encryption === 'WEP') && !password) {
+                throw new Error('必须提供密码');
+            }
+            
+            const wifiString = `WIFI:T:${encryption};S:${ssid};P:${password};H:${hidden ? 'true' : ''};`;
+            return await renderer.generate(wifiString);
+        }
+    }
 };
 
 // DOM 元素

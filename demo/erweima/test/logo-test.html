@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo功能测试</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .test-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        .test-item {
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .test-item h3 {
+            margin: 0 0 1rem 0;
+            font-size: 1.1rem;
+            color: #333;
+        }
+        .qr-container {
+            margin: 1rem 0;
+        }
+        .status {
+            margin: 1rem 0;
+            padding: 0.5rem;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .console {
+            background: #1c1c1e;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+            margin: 2rem 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Logo功能专项测试</h1>
+    
+    <div id="test-container" class="test-container"></div>
+    
+    <h2>调试日志</h2>
+    <div id="console" class="console"></div>
+
+    <!-- 加载ZXing库 -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    
+    <!-- 加载组件 -->
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+    <script src="../src/generators/logo-manager.js"></script>
+    <script src="../src/renderers/adapters/legacyAdapter.js"></script>
+
+    <script>
+        // 日志函数
+        function log(message, type = 'info') {
+            const console = document.getElementById('console');
+            const line = document.createElement('div');
+            line.style.color = type === 'error' ? '#ff6b6b' : 
+                              type === 'success' ? '#51cf66' : 
+                              type === 'warning' ? '#ffd43b' : '#74c0fc';
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            console.appendChild(line);
+            console.scrollTop = console.scrollHeight;
+        }
+
+        // 创建测试项
+        function createTestItem(title, qrElement, status, statusType = 'success') {
+            const item = document.createElement('div');
+            item.className = 'test-item';
+            
+            const titleElem = document.createElement('h3');
+            titleElem.textContent = title;
+            item.appendChild(titleElem);
+            
+            const qrContainer = document.createElement('div');
+            qrContainer.className = 'qr-container';
+            if (qrElement) {
+                qrContainer.appendChild(qrElement);
+            }
+            item.appendChild(qrContainer);
+            
+            const statusElem = document.createElement('div');
+            statusElem.className = `status ${statusType}`;
+            statusElem.textContent = status;
+            item.appendChild(statusElem);
+            
+            return item;
+        }
+
+        // 等待依赖加载
+        function waitForDependencies() {
+            return new Promise((resolve, reject) => {
+                let attempts = 0;
+                const maxAttempts = 50;
+                
+                const check = () => {
+                    attempts++;
+                    if (window.ZXing && window.ZXingRenderer && window.LogoManager) {
+                        resolve();
+                    } else if (attempts >= maxAttempts) {
+                        reject(new Error('依赖加载超时'));
+                    } else {
+                        setTimeout(check, 100);
+                    }
+                };
+                
+                check();
+            });
+        }
+
+        // 创建更好的Logo图片
+        function createBetterLogo() {
+            // 创建一个简单的SVG Logo
+            const svg = `
+                <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="40" height="40" rx="8" fill="#007AFF"/>
+                    <path d="M20 10L25 15H22V25H18V15H15L20 10Z" fill="white"/>
+                </svg>
+            `;
+            return 'data:image/svg+xml;base64,' + btoa(svg);
+        }
+
+        // 运行Logo测试
+        async function runLogoTests() {
+            try {
+                log('等待依赖加载...', 'info');
+                await waitForDependencies();
+                log('依赖加载完成', 'success');
+
+                const container = document.getElementById('test-container');
+                const logoUrl = createBetterLogo();
+                
+                const tests = [
+                    {
+                        name: '无Logo二维码（对比）',
+                        content: '无Logo测试',
+                        options: { size: 200 }
+                    },
+                    {
+                        name: '小Logo二维码',
+                        content: '小Logo测试',
+                        options: { 
+                            size: 200,
+                            logo: logoUrl,
+                            logoSize: 0.15
+                        }
+                    },
+                    {
+                        name: '中等Logo二维码',
+                        content: '中等Logo测试',
+                        options: { 
+                            size: 200,
+                            logo: logoUrl,
+                            logoSize: 0.25
+                        }
+                    },
+                    {
+                        name: '大Logo二维码',
+                        content: '大Logo测试',
+                        options: { 
+                            size: 200,
+                            logo: logoUrl,
+                            logoSize: 0.35
+                        }
+                    },
+                    {
+                        name: '彩色Logo二维码',
+                        content: '彩色Logo测试',
+                        options: { 
+                            size: 200,
+                            logo: logoUrl,
+                            logoSize: 0.25,
+                            foreground: '#FF6B6B',
+                            background: '#F1F3F4'
+                        }
+                    }
+                ];
+
+                for (const test of tests) {
+                    try {
+                        log(`开始测试: ${test.name}`, 'info');
+                        
+                        if (test.options.logo) {
+                            log(`Logo配置: 大小=${test.options.logoSize}`, 'info');
+                        }
+                        
+                        const renderer = new ZXingRenderer(test.options);
+                        const qrElement = await renderer.generate(test.content);
+                        
+                        if (qrElement && qrElement.tagName === 'svg') {
+                            let status = '✅ 生成成功';
+                            let statusType = 'success';
+                            
+                            // 检查Logo元素
+                            if (test.options.logo) {
+                                const logoImages = qrElement.querySelectorAll('image');
+                                const logoBackgrounds = qrElement.querySelectorAll('.logo-background');
+                                const clipPaths = qrElement.querySelectorAll('clipPath');
+                                
+                                log(`Logo检查: 图片=${logoImages.length}, 背景=${logoBackgrounds.length}, 裁剪=${clipPaths.length}`, 'info');
+                                
+                                if (logoImages.length === 0) {
+                                    status = '⚠️ 二维码生成成功，但未找到Logo';
+                                    statusType = 'warning';
+                                    log(`警告: ${test.name} 未找到Logo图片元素`, 'warning');
+                                } else {
+                                    status = `✅ 生成成功，包含${logoImages.length}个Logo元素`;
+                                    log(`${test.name} Logo添加成功`, 'success');
+                                }
+                            }
+                            
+                            const item = createTestItem(test.name, qrElement, status, statusType);
+                            container.appendChild(item);
+                            
+                        } else {
+                            throw new Error('生成的元素无效');
+                        }
+                        
+                    } catch (error) {
+                        log(`${test.name} 测试失败: ${error.message}`, 'error');
+                        const item = createTestItem(test.name, null, `❌ 生成失败: ${error.message}`, 'error');
+                        container.appendChild(item);
+                    }
+                }
+                
+                log('所有Logo测试完成', 'success');
+                
+            } catch (error) {
+                log(`测试过程出错: ${error.message}`, 'error');
+            }
+        }
+
+        // 页面加载完成后运行测试
+        window.addEventListener('load', runLogoTests);
+    </script>
+</body>
+</html> 

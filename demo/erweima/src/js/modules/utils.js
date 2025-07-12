@@ -71,15 +71,23 @@ export async function renderSVGToCanvas(svgElement, options) {
     svgClone.setAttribute('height', size);
     
     // 确保背景色正确
-    const bgRect = svgClone.querySelector('rect');
+    const bgRect = svgClone.querySelector('.qr-background');
     if (bgRect) {
         bgRect.setAttribute('fill', bgColor);
+    } else {
+        // 如果没有找到背景元素，创建一个
+        const newBgRect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        newBgRect.setAttribute('width', size);
+        newBgRect.setAttribute('height', size);
+        newBgRect.setAttribute('fill', bgColor);
+        newBgRect.setAttribute('class', 'qr-background');
+        svgClone.insertBefore(newBgRect, svgClone.firstChild);
     }
     
-    // 确保所有路径使用正确的前景色
-    const paths = svgClone.querySelectorAll('path, polygon');
-    paths.forEach(path => {
-        path.setAttribute('fill', fgColor);
+    // 确保所有前景元素使用正确的前景色
+    const foregroundElements = svgClone.querySelectorAll('.qr-module, path, polygon');
+    foregroundElements.forEach(element => {
+        element.setAttribute('fill', fgColor);
     });
 
     // 创建一个离屏Canvas用于渲染SVG

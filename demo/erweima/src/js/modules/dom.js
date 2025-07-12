@@ -107,20 +107,36 @@ export function updatePreview(svgElement) {
     elements.preview.innerHTML = '';
     
     if (svgElement) {
-        // 设置SVG样式
+        // 获取SVG的实际尺寸
+        const svgWidth = svgElement.getAttribute('width') || '300';
+        const svgHeight = svgElement.getAttribute('height') || '300';
+        
+        // 设置SVG样式，确保完全填充预览容器
         svgElement.style.width = '100%';
         svgElement.style.height = '100%';
+        svgElement.style.display = 'block';
         
         // 确保SVG有正确的viewBox
         if (!svgElement.getAttribute('viewBox')) {
-            const width = svgElement.getAttribute('width') || '300';
-            const height = svgElement.getAttribute('height') || '300';
-            const viewBox = `0 0 ${width} ${height}`;
+            const viewBox = `0 0 ${svgWidth} ${svgHeight}`;
             svgElement.setAttribute('viewBox', viewBox);
         }
         
+        // 设置预览容器的尺寸以匹配SVG
+        const size = Math.max(parseInt(svgWidth), parseInt(svgHeight));
+        elements.preview.style.width = `${size}px`;
+        elements.preview.style.height = `${size}px`;
+        
         // 添加SVG到预览区
         elements.preview.appendChild(svgElement);
+        
+        // 调试信息
+        console.log('预览更新:', {
+            svgWidth,
+            svgHeight,
+            containerWidth: elements.preview.style.width,
+            containerHeight: elements.preview.style.height
+        });
     } else {
         elements.preview.innerHTML = '<p class="empty-state">请输入内容生成二维码</p>';
     }

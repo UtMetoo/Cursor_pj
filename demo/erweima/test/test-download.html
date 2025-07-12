@@ -37,6 +37,14 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            overflow: hidden;
+            background: #f8f9fa;
+        }
+        
+        .qr-preview svg {
+            width: 100%;
+            height: 100%;
+            display: block;
         }
         h2 {
             margin: 0;
@@ -63,6 +71,17 @@
             max-width: 100%;
             font-size: 12px;
         }
+        .engine-selector {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .engine-selector label {
+            margin: 0 10px;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -73,12 +92,11 @@
         <!-- 测试用例将动态生成 -->
     </div>
 
-    <!-- 按顺序加载所有依赖 -->
-    <script src="../lib/qrcode.min.js"></script>
+    <!-- 加载依赖 -->
     <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
-    <script src="../src/generators/logo-manager.js"></script>
-    <script src="../src/generators/base-generator.js"></script>
-    <script src="../src/generators/zxing-generator.js"></script>
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
 
     <script>
         // 测试用例配置
@@ -94,55 +112,69 @@
         // 初始化测试
         async function initTests() {
             const container = document.getElementById('test-container');
+            container.innerHTML = '';
             
             for (const testCase of testCases) {
                 const testElement = document.createElement('div');
                 testElement.className = 'test-case';
                 
-                // 添加标题
-                const title = document.createElement('h2');
-                title.textContent = testCase.name;
-                testElement.appendChild(title);
-                
-                // 添加颜色信息
-                const colorInfo = document.createElement('p');
-                colorInfo.innerHTML = `前景色: <span style="color:${testCase.foreground}">${testCase.foreground}</span><br>背景色: <span style="color:${testCase.background}">${testCase.background}</span>`;
-                testElement.appendChild(colorInfo);
+                // 添加标题和颜色信息
+                testElement.innerHTML = `
+                    <h2>${testCase.name}</h2>
+                    <p>
+                        前景色: <span style="color:${testCase.foreground}">${testCase.foreground}</span><br>
+                        背景色: <span style="color:${testCase.background}">${testCase.background}</span>
+                    </p>
+                `;
                 
                 // 创建预览区
                 const preview = document.createElement('div');
                 preview.className = 'qr-preview';
                 testElement.appendChild(preview);
                 
-                // 生成二维码
                 try {
-                    const generator = new ZXingBaseGenerator({
-                        width: 200,
-                        height: 200,
+                    // 使用新渲染引擎生成二维码
+                    const renderer = new ZXingRenderer({
+                        size: 200,
                         foreground: testCase.foreground,
                         background: testCase.background,
                         errorCorrectionLevel: 'H',
-                        margin: 1
+                        margin: 0.5
                     });
                     
-                    const svgElement = await generator.generate('https://example.com/test-' + testCase.name);
+                    const svgElement = await renderer.generate('https://example.com/test-' + testCase.name);
+                    
+                    // 设置SVG样式
+                    Object.assign(svgElement.style, {
+                        width: '100%',
+                        height: '100%',
+                        display: 'block'
+                    });
+                    
+                    // 确保SVG有正确的viewBox
+                    if (!svgElement.getAttribute('viewBox')) {
+                        svgElement.setAttribute('viewBox', '0 0 200 200');
+                    }
+                    
                     preview.appendChild(svgElement);
                     
-                    // 添加下载按钮
+                    // 添加操作按钮
+                    const buttons = document.createElement('div');
+                    buttons.className = 'buttons';
+                    
+                    // 下载按钮
                     const downloadBtn = document.createElement('button');
                     downloadBtn.textContent = '下载PNG';
-                    downloadBtn.onclick = () => downloadQRCode(svgElement, testCase);
-                    testElement.appendChild(downloadBtn);
+                    downloadBtn.onclick = () => downloadQRCode(renderer, testCase);
+                    buttons.appendChild(downloadBtn);
                     
-                    // 添加SVG检查按钮
+                    // 检查按钮
                     const checkBtn = document.createElement('button');
                     checkBtn.textContent = '检查SVG';
-                    checkBtn.onclick = () => {
-                        const svgCode = svgElement.outerHTML;
-                        console.log('SVG代码:', svgCode);
-                        alert('SVG结构已输出到控制台，请按F12查看');
-                    };
-                    testElement.appendChild(checkBtn);
+                    checkBtn.onclick = () => checkSVG(svgElement);
+                    buttons.appendChild(checkBtn);
+                    
+                    testElement.appendChild(buttons);
                     
                     // 添加日志区域
                     const logArea = document.createElement('pre');
@@ -159,105 +191,43 @@
         }
 
         // 下载二维码
-        async function downloadQRCode(svgElement, testCase) {
+        async function downloadQRCode(renderer, testCase) {
             const logArea = document.getElementById(`log-${testCases.indexOf(testCase)}`);
             logArea.textContent = '开始下载...\n';
             
             try {
-                if (!svgElement) {
-                    throw new Error('没有可下载的二维码');
-                }
-
-                // 获取当前二维码的配置
-                const size = 200;
-                const bgColor = testCase.background;
-                const fgColor = testCase.foreground;
+                const pngUrl = await renderer.exportToPNG('https://example.com/test-' + testCase.name);
                 
-                logArea.textContent += `配置: 尺寸=${size}, 背景=${bgColor}, 前景=${fgColor}\n`;
-
-                // 创建一个深度克隆的SVG副本
-                const svgClone = svgElement.cloneNode(true);
-                
-                // 确保SVG尺寸正确
-                svgClone.setAttribute('width', size);
-                svgClone.setAttribute('height', size);
-                
-                // 确保背景色正确
-                const bgRect = svgClone.querySelector('rect');
-                if (bgRect) {
-                    bgRect.setAttribute('fill', bgColor);
-                    logArea.textContent += `设置背景矩形颜色: ${bgColor}\n`;
-                }
-                
-                // 确保所有路径使用正确的前景色
-                const paths = svgClone.querySelectorAll('path, polygon');
-                paths.forEach(path => {
-                    path.setAttribute('fill', fgColor);
-                });
-                logArea.textContent += `设置${paths.length}个路径元素的颜色: ${fgColor}\n`;
-
-                // 创建Canvas元素
-                const canvas = document.createElement('canvas');
-                canvas.width = size;
-                canvas.height = size;
-                const ctx = canvas.getContext('2d');
-                
-                // 先用背景色填充Canvas
-                ctx.fillStyle = bgColor;
-                ctx.fillRect(0, 0, size, size);
-                logArea.textContent += `Canvas背景已填充: ${bgColor}\n`;
-
-                // 将SVG转换为XML字符串
-                const svgData = new XMLSerializer().serializeToString(svgClone);
-                const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                const svgUrl = URL.createObjectURL(svgBlob);
-                
-                logArea.textContent += `SVG已序列化，大小: ${svgData.length}\n`;
-
-                // 创建图片对象
-                const img = new Image();
-                img.crossOrigin = 'Anonymous';
-                
-                // 等待图片加载完成
-                await new Promise((resolve, reject) => {
-                    img.onload = () => {
-                        try {
-                            // 绘制到Canvas
-                            ctx.drawImage(img, 0, 0, size, size);
-                            logArea.textContent += `图片已绘制到Canvas\n`;
-                            resolve();
-                        } catch (err) {
-                            logArea.textContent += `绘制图片到Canvas时出错: ${err.message}\n`;
-                            reject(err);
-                        }
-                    };
-                    img.onerror = (err) => {
-                        logArea.textContent += `加载SVG图片失败\n`;
-                        reject(new Error('加载SVG图片失败'));
-                    };
-                    img.src = svgUrl;
-                });
-
-                // 释放URL
-                URL.revokeObjectURL(svgUrl);
-
-                // 转换为PNG并下载
-                try {
-                    const pngUrl = canvas.toDataURL('image/png');
                     const downloadLink = document.createElement('a');
                     downloadLink.href = pngUrl;
                     downloadLink.download = `qrcode-${testCase.name}-${Date.now()}.png`;
                     document.body.appendChild(downloadLink);
                     downloadLink.click();
                     document.body.removeChild(downloadLink);
-                    logArea.textContent += `二维码已下载为PNG\n`;
-                } catch (err) {
-                    logArea.textContent += `转换为PNG时出错: ${err.message}\n`;
-                    throw new Error('转换为PNG失败: ' + err.message);
-                }
+                
+                logArea.textContent += '二维码已下载为PNG\n';
             } catch (error) {
-                logArea.textContent += `下载二维码时出错: ${error.message}\n`;
+                logArea.textContent += `下载失败: ${error.message}\n`;
             }
+        }
+
+        // 检查SVG结构
+        function checkSVG(svgElement) {
+            const analysis = {
+                rects: svgElement.querySelectorAll('rect').length,
+                paths: svgElement.querySelectorAll('path').length,
+                modules: svgElement.querySelectorAll('.qr-module').length,
+                background: svgElement.querySelector('.qr-background'),
+                svgBackground: svgElement.style.backgroundColor
+            };
+            
+            console.log('SVG分析:', {
+                ...analysis,
+                background: analysis.background ? '存在' : '不存在',
+                backgroundColor: analysis.background ? analysis.background.getAttribute('fill') : '无'
+            });
+            
+            alert('SVG结构已输出到控制台，请按F12查看');
         }
 
         // 初始化测试
