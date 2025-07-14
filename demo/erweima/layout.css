@@ -100,6 +100,11 @@ header .subtitle {
   height: fit-content;
 }
 
+/* 隐藏类定义 */
+.hidden {
+  display: none !important;
+}
+
 /* 输入区域布局 */
 .input-section {
   background: var(--surface);

@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>下载功能调试</title>
+    <style>
+        body {
+            font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background: #f9f9f9;
+        }
+        
+        .qr-preview {
+            width: 200px;
+            height: 200px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            background: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .qr-preview svg {
+            width: 100%;
+            height: 100%;
+        }
+        
+        button {
+            margin: 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            background: #007bff;
+            color: white;
+            cursor: pointer;
+        }
+        
+        button:hover {
+            background: #0056b3;
+        }
+        
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        
+        .success {
+            color: #28a745;
+        }
+        
+        .error {
+            color: #dc3545;
+        }
+        
+        .warning {
+            color: #ffc107;
+        }
+        
+        .info {
+            color: #17a2b8;
+        }
+        
+        .removed-section {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            opacity: 0.7;
+        }
+        
+        .removed-section h2 {
+            color: #6c757d;
+            text-decoration: line-through;
+        }
+    </style>
+</head>
+<body>
+    <h1>下载功能调试页面</h1>
+    <p>这个页面帮助调试二维码下载功能，现在统一使用 ZXingRenderer.exportToPNG 方法</p>
+    
+    <div class="test-section">
+        <h2>✅ 使用 ZXingRenderer.exportToPNG（推荐且唯一方法）</h2>
+        <div class="qr-preview" id="preview1"></div>
+        <button onclick="testMethod1()">生成二维码</button>
+        <button onclick="downloadMethod1()">下载PNG</button>
+        <div class="log" id="log1">等待操作...</div>
+    </div>
+    
+    <div class="test-section removed-section">
+        <h2>❌ 原 renderSVGToCanvas 方法（已移除）</h2>
+        <p style="color: #666; font-style: italic;">
+            ✅ renderSVGToCanvas 方法已被移除，现在统一使用 ZXingRenderer.exportToPNG 方法，代码更简洁可靠
+        </p>
+        <div class="log" id="log2">此方法已被移除，以简化代码结构并提高可靠性</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>🔍 多配色测试</h2>
+        <button onclick="runColorTests()">运行多配色测试</button>
+        <div class="log" id="color-test-log">等待测试...</div>
+    </div>
+    
+    <div class="test-section">
+        <h2>📊 性能测试</h2>
+        <button onclick="runPerformanceTest()">运行性能测试</button>
+        <div class="log" id="performance-log">等待测试...</div>
+    </div>
+
+    <!-- 加载依赖 -->
+    <script src="https://cdn.jsdelivr.net/npm/@zxing/library@latest/umd/index.min.js"></script>
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+    <script src="../src/generators/logo-manager.js"></script>
+    
+    <script>
+        // 全局变量
+        let renderer;
+        let svg1;
+        
+        // 初始化
+        function init() {
+            renderer = new ZXingRenderer({
+                size: 200,
+                foreground: '#000000',
+                background: '#FFFFFF',
+                errorCorrectionLevel: 'H',
+                margin: 0.5
+            });
+            
+            // 显示初始化状态
+            document.getElementById('log1').innerHTML = '<span class="info">✓ ZXingRenderer 初始化完成</span>';
+        }
+        
+        // 测试生成二维码
+        window.testMethod1 = async function() {
+            const log = document.getElementById('log1');
+            log.innerHTML = '<span class="warning">正在生成二维码...</span>';
+            
+            try {
+                svg1 = await renderer.generate('测试内容：使用统一的 ZXingRenderer.exportToPNG 方法');
+                document.getElementById('preview1').innerHTML = '';
+                document.getElementById('preview1').appendChild(svg1);
+                log.innerHTML = '<span class="success">✓ 二维码生成成功</span>';
+            } catch (error) {
+                log.innerHTML = `<span class="error">✗ 生成失败: ${error.message}</span>`;
+            }
+        };
+        
+        // 下载二维码
+        window.downloadMethod1 = async function() {
+            const log = document.getElementById('log1');
+            if (!svg1) {
+                log.innerHTML = '<span class="error">✗ 请先生成二维码</span>';
+                return;
+            }
+            
+            log.innerHTML = '<span class="warning">正在下载...</span>';
+            
+            try {
+                const startTime = performance.now();
+                const pngUrl = await renderer.exportToPNG('测试内容：使用统一的 ZXingRenderer.exportToPNG 方法');
+                const endTime = performance.now();
+                
+                const downloadLink = document.createElement('a');
+                downloadLink.href = pngUrl;
+                downloadLink.download = `qrcode-unified-method-${Date.now()}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                
+                log.innerHTML = `<span class="success">✓ 下载成功 (${(endTime - startTime).toFixed(2)}ms)</span>`;
+            } catch (error) {
+                log.innerHTML = `<span class="error">✗ 下载失败: ${error.message}</span>`;
+            }
+        };
+        
+        // 多配色测试
+        window.runColorTests = async function() {
+            const log = document.getElementById('color-test-log');
+            log.innerHTML = '<span class="warning">正在运行多配色测试...</span><br>';
+            
+            const testColors = [
+                { name: '经典黑白', fg: '#000000', bg: '#FFFFFF' },
+                { name: '蓝底白字', fg: '#FFFFFF', bg: '#2196F3' },
+                { name: '绿底黑字', fg: '#000000', bg: '#4CAF50' },
+                { name: '红底白字', fg: '#FFFFFF', bg: '#F44336' },
+                { name: '黄底黑字', fg: '#000000', bg: '#FFEB3B' },
+                { name: '紫底白字', fg: '#FFFFFF', bg: '#9C27B0' }
+            ];
+            
+            const testContent = '多配色测试：中文测试 + English Test + 123456';
+            
+            for (const color of testColors) {
+                log.innerHTML += `<br><strong>${color.name}配色测试：</strong><br>`;
+                
+                try {
+                    const testRenderer = new ZXingRenderer({
+                        size: 200,
+                        foreground: color.fg,
+                        background: color.bg,
+                        errorCorrectionLevel: 'H',
+                        margin: 0.5
+                    });
+                    
+                    const startTime = performance.now();
+                    const pngUrl = await testRenderer.exportToPNG(testContent);
+                    const endTime = performance.now();
+                    
+                    log.innerHTML += `  <span class="success">✓ 成功</span> (${(endTime - startTime).toFixed(2)}ms)<br>`;
+                    
+                } catch (error) {
+                    log.innerHTML += `  <span class="error">✗ 失败: ${error.message}</span><br>`;
+                }
+            }
+            
+            log.innerHTML += '<br><span class="success">✓ 多配色测试完成！</span>';
+        };
+        
+        // 性能测试
+        window.runPerformanceTest = async function() {
+            const log = document.getElementById('performance-log');
+            log.innerHTML = '<span class="warning">正在运行性能测试...</span><br>';
+            
+            const testSizes = [100, 200, 300, 400, 500];
+            const testContent = '性能测试：Performance Test 性能测试 123456';
+            
+            for (const size of testSizes) {
+                log.innerHTML += `<br><strong>尺寸 ${size}x${size} 测试：</strong><br>`;
+                
+                try {
+                    const testRenderer = new ZXingRenderer({
+                        size: size,
+                        foreground: '#000000',
+                        background: '#FFFFFF',
+                        errorCorrectionLevel: 'H',
+                        margin: 0.5
+                    });
+                    
+                    // 测试多次取平均值
+                    const times = [];
+                    for (let i = 0; i < 3; i++) {
+                        const startTime = performance.now();
+                        await testRenderer.exportToPNG(testContent);
+                        const endTime = performance.now();
+                        times.push(endTime - startTime);
+                    }
+                    
+                    const avgTime = times.reduce((a, b) => a + b, 0) / times.length;
+                    log.innerHTML += `  平均时间: <span class="success">${avgTime.toFixed(2)}ms</span><br>`;
+                    
+                } catch (error) {
+                    log.innerHTML += `  <span class="error">✗ 失败: ${error.message}</span><br>`;
+                }
+            }
+            
+            log.innerHTML += '<br><span class="success">✓ 性能测试完成！</span>';
+        };
+        
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html> 

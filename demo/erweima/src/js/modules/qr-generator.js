@@ -3,8 +3,8 @@
  * 使用工厂模式创建不同类型的二维码生成器
  */
 
-import { defaultQROptions } from './config.js';
-import { checkZXingAPI } from './zxing-access.js';
+import { defaultQROptions } from './core.js';
+import { checkZXingAPI } from './zxing-support.js';
 
 /**
  * 二维码生成器工厂类
@@ -52,6 +52,15 @@ export class QRGeneratorFactory {
 export class QRProcessor {
     constructor(generators) {
         this.generators = generators;
+        this.currentType = 'text'; // 默认类型
+    }
+
+    /**
+     * 设置当前二维码类型
+     * @param {string} type - 二维码类型
+     */
+    setType(type) {
+        this.currentType = type;
     }
 
     /**
@@ -82,7 +91,7 @@ export class QRProcessor {
         const { text, wifiSsid, wifiPassword, wifiEncryption, wifiHidden, url } = inputs;
         
         // 根据当前类型生成对应的二维码
-        switch (appState.currentType) {
+        switch (this.currentType) {
             case 'text':
                 return await this.processContent('text', text);
             
@@ -98,7 +107,7 @@ export class QRProcessor {
                 return await this.processContent('url', normalizedUrl);
             
             default:
-                throw new Error(`不支持的二维码类型: ${appState.currentType}`);
+                throw new Error(`不支持的二维码类型: ${this.currentType}`);
         }
     }
 } 

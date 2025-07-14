@@ -3,16 +3,19 @@
  * 包含二维码的复制和下载功能
  */
 
-import { renderSVGToCanvas, showToast, showError } from './utils.js';
+import { showToast, showError } from './core.js';
 import { getElements } from './dom.js';
-import { QRGeneratorFactory } from './generators/qrGeneratorFactory.js';
+import { QRGeneratorFactory } from './qr-generator.js';
 
 /**
  * 处理二维码操作（下载或复制）
  * @param {string} action - 操作类型（'download'或'copy'）
  * @param {Object} options - 二维码选项
+ * @param {Object} generators - 生成器对象
+ * @param {string} currentType - 当前二维码类型
+ * @param {Object} inputs - 输入数据
  */
-export async function processQRCode(action, options) {
+export async function processQRCode(action, options, generators = null, currentType = 'text', inputs = {}) {
     try {
         const elements = getElements();
         const svgElement = elements.preview.querySelector('svg');
@@ -21,16 +24,36 @@ export async function processQRCode(action, options) {
             throw new Error(`没有可${action === 'download' ? '下载' : '复制'}的二维码`);
         }
         
-        const canvas = await renderSVGToCanvas(svgElement, {
-            size: options.size,
-            bgColor: options.background,
-            fgColor: options.foreground,
-            cornerRadius: options.cornerRadius || 0
-        });
+        // 检查是否有生成器可用
+        if (!generators || !generators[currentType]) {
+            throw new Error('二维码生成器不可用，请刷新页面重试');
+        }
+        
+        // 获取当前输入内容
+        let content = '';
+        switch (currentType) {
+            case 'text':
+                content = inputs.text || elements.inputs.text?.value || 'Hello World';
+                break;
+            case 'wifi':
+                const ssid = inputs.wifiSsid || elements.inputs.wifiSsid?.value || 'WiFi';
+                const password = inputs.wifiPassword || elements.inputs.wifiPassword?.value || '';
+                const encryption = inputs.wifiEncryption || elements.inputs.wifiEncryption?.value || 'WPA2';
+                const hidden = inputs.wifiHidden !== undefined ? inputs.wifiHidden : (elements.inputs.wifiHidden?.checked || false);
+                content = `WIFI:T:${encryption};S:${ssid};P:${password};H:${hidden ? 'true' : ''};`;
+                break;
+            case 'url':
+                const url = inputs.url || elements.inputs.url?.value || 'https://example.com';
+                content = url.startsWith('http') ? url : 'https://' + url;
+                break;
+            default:
+                content = 'Hello World';
+        }
+        
+        // 使用生成器的导出方法
+        const pngUrl = await generators[currentType].exportToPNG(content);
         
         if (action === 'download') {
-            // 转换为PNG并下载
-            const pngUrl = canvas.toDataURL('image/png');
             const downloadLink = document.createElement('a');
             downloadLink.href = pngUrl;
             downloadLink.download = `qrcode-${Date.now()}.png`;
@@ -39,8 +62,9 @@ export async function processQRCode(action, options) {
             document.body.removeChild(downloadLink);
             showToast('二维码已下载');
         } else if (action === 'copy') {
-            // 转换为Blob并复制到剪贴板
-            const blob = await new Promise(resolve => canvas.toBlob(resolve));
+            // 将PNG URL转换为Blob
+            const response = await fetch(pngUrl);
+            const blob = await response.blob();
             await navigator.clipboard.write([
                 new ClipboardItem({ 'image/png': blob })
             ]);
@@ -48,7 +72,12 @@ export async function processQRCode(action, options) {
         }
     } catch (error) {
         console.error(`${action === 'download' ? '下载' : '复制'}二维码时出错:`, error);
-        showError(`${action === 'download' ? '下载' : '复制'}失败: ${error.message}`, getElements().preview);
+        // 提供更详细的错误信息
+        let errorMessage = `${action === 'download' ? '下载' : '复制'}失败: ${error.message}`;
+        if (error.message.includes('exportToPNG')) {
+            errorMessage += '。请检查网络连接或刷新页面重试。';
+        }
+        showError(errorMessage, getElements().preview);
     }
 }
 

@@ -303,11 +303,85 @@ class ZXingRenderer {
             keys: Array.from(this._writerCache.keys())
         };
     }
-}
 
-// 确保ZXing库已加载
-if (typeof ZXing === 'undefined') {
-    throw new Error('ZXing库未加载，请确保在使用ZXingRenderer之前加载ZXing库');
+    /**
+     * 导出为PNG格式
+     * @param {string} content - 二维码内容
+     * @param {number} scale - 缩放比例，默认为1
+     * @returns {Promise<string>} PNG数据URL
+     */
+    async exportToPNG(content, scale = 1) {
+        try {
+            // 生成SVG
+            const svgElement = await this.generate(content);
+            
+            // 创建Canvas
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            
+            // 设置Canvas尺寸
+            const finalSize = this.size * scale;
+            canvas.width = finalSize;
+            canvas.height = finalSize;
+            
+            // 创建Image对象
+            const img = new Image();
+            
+            return new Promise((resolve, reject) => {
+                img.onload = () => {
+                    try {
+                        // 清空Canvas并设置背景
+                        ctx.fillStyle = this.colorManager.getBackgroundColor();
+                        ctx.fillRect(0, 0, finalSize, finalSize);
+                        
+                        // 绘制SVG到Canvas
+                        ctx.drawImage(img, 0, 0, finalSize, finalSize);
+                        
+                        // 转换为PNG数据URL
+                        const pngDataUrl = canvas.toDataURL('image/png');
+                        resolve(pngDataUrl);
+                    } catch (error) {
+                        reject(new Error(`Canvas绘制失败: ${error.message}`));
+                    }
+                };
+                
+                img.onerror = () => {
+                    reject(new Error('SVG图像加载失败'));
+                };
+                
+                // 将SVG转换为数据URL
+                const svgData = new XMLSerializer().serializeToString(svgElement);
+                const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+                const svgUrl = URL.createObjectURL(svgBlob);
+                
+                img.src = svgUrl;
+                
+                // 清理URL对象
+                setTimeout(() => {
+                    URL.revokeObjectURL(svgUrl);
+                }, 1000);
+            });
+            
+        } catch (error) {
+            throw new Error(`PNG导出失败: ${error.message}`);
+        }
+    }
+
+    /**
+     * 导出为SVG格式
+     * @param {string} content - 二维码内容
+     * @returns {Promise<string>} SVG数据URL
+     */
+    async exportToSVG(content) {
+        try {
+            const svgElement = await this.generate(content);
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            return URL.createObjectURL(svgBlob);
+        } catch (error) {
+            throw new Error(`SVG导出失败: ${error.message}`);
+        }
+    }
 }
 
 // 导出为全局变量

@@ -6,7 +6,7 @@ class ColorManager {
   constructor(debug = false) {
     this.debug = debug;
         this.foregroundColor = "#000000";
-        this.backgroundColor = "#FFFFFF";
+        this.backgroundColor = "#ffffff";
     }
 
     /**
@@ -38,7 +38,7 @@ class ColorManager {
   }
   
   /**
-   * 验证颜色格式
+   * 验证颜色格式并标准化
    */
   validateColor(color) {
     // 简单验证是否为有效的颜色值
@@ -46,6 +46,58 @@ class ColorManager {
     if (!colorPattern.test(color)) {
       throw new Error(`无效的颜色格式: ${color}`);
     }
+    
+    // 标准化颜色格式
+    return this.normalizeColor(color);
+  }
+  
+  /**
+   * 标准化颜色格式，将RGB等格式转换为十六进制
+   */
+  normalizeColor(color) {
+    // 如果已经是十六进制格式，直接返回（转换为小写）
+    if (color.startsWith('#')) {
+      return color.toLowerCase();
+    }
+    
+    // 处理RGB格式
+    const rgbMatch = color.match(/rgb\((\d+),\s*(\d+),\s*(\d+)\)/);
+    if (rgbMatch) {
+      const r = parseInt(rgbMatch[1]);
+      const g = parseInt(rgbMatch[2]);
+      const b = parseInt(rgbMatch[3]);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+    
+    // 处理RGBA格式
+    const rgbaMatch = color.match(/rgba\((\d+),\s*(\d+),\s*(\d+),\s*[\d.]+\)/);
+    if (rgbaMatch) {
+      const r = parseInt(rgbaMatch[1]);
+      const g = parseInt(rgbaMatch[2]);
+      const b = parseInt(rgbaMatch[3]);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+    
+    // 处理命名颜色
+    const namedColors = {
+      'black': '#000000',
+      'white': '#ffffff',
+      'red': '#ff0000',
+      'green': '#008000',
+      'blue': '#0000ff',
+      'yellow': '#ffff00',
+      'cyan': '#00ffff',
+      'magenta': '#ff00ff',
+      'gray': '#808080',
+      'grey': '#808080'
+    };
+    
+    const lowerColor = color.toLowerCase();
+    if (namedColors[lowerColor]) {
+      return namedColors[lowerColor];
+    }
+    
+    // 如果无法标准化，返回原始值
     return color;
   }
   

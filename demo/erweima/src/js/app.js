@@ -3,13 +3,11 @@
  * 整合其他模块并初始化应用
  */
 
-import { defaultQROptions } from './modules/config.js';
-import { debounce, showToast, showError } from './modules/utils.js';
+import { defaultQROptions, debounce, showToast, showError } from './modules/core.js';
 import { initializeElements, getElements, togglePasswordVisibility, updatePreview, updatePreviewSize } from './modules/dom.js';
 import { QRGeneratorFactory, QRProcessor } from './modules/qr-generator.js';
 import { processQRCode, handleLogoUpload, removeLogo } from './modules/actions.js';
-import { checkZXingAPI } from './modules/zxing-access.js';
-import { waitForDependencies } from './modules/init-check.js';
+import { checkZXingAPI, waitForDependencies } from './modules/zxing-support.js';
 
 // 应用状态
 const appState = {
@@ -101,8 +99,28 @@ function setupEventListeners() {
     });
 
     // 复制和下载按钮
-    elements.copyBtn.addEventListener('click', () => processQRCode('copy', appState.qrOptions));
-    elements.downloadBtn.addEventListener('click', () => processQRCode('download', appState.qrOptions));
+    elements.copyBtn.addEventListener('click', () => {
+        const inputs = {
+            text: elements.inputs.text.value,
+            wifiSsid: elements.inputs.wifiSsid.value,
+            wifiPassword: elements.inputs.wifiPassword.value,
+            wifiEncryption: elements.inputs.wifiEncryption.value,
+            wifiHidden: elements.inputs.wifiHidden.checked,
+            url: elements.inputs.url.value
+        };
+        processQRCode('copy', appState.qrOptions, generators, appState.currentType, inputs);
+    });
+    elements.downloadBtn.addEventListener('click', () => {
+        const inputs = {
+            text: elements.inputs.text.value,
+            wifiSsid: elements.inputs.wifiSsid.value,
+            wifiPassword: elements.inputs.wifiPassword.value,
+            wifiEncryption: elements.inputs.wifiEncryption.value,
+            wifiHidden: elements.inputs.wifiHidden.checked,
+            url: elements.inputs.url.value
+        };
+        processQRCode('download', appState.qrOptions, generators, appState.currentType, inputs);
+    });
 }
 
 /**
@@ -124,9 +142,11 @@ function switchType(type) {
     // 隐藏所有输入区域
     Object.values(elements.sections).forEach(section => {
         section.classList.remove('visible');
+        section.classList.add('hidden');
     });
 
     // 显示选中的输入区域
+    elements.sections[type].classList.remove('hidden');
     elements.sections[type].classList.add('visible');
 
     // 更新二维码
