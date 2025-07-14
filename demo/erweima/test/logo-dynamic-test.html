@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo动态调整测试</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .test-container {
+            border: 1px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+        }
+        .qr-preview {
+            text-align: center;
+            margin: 20px 0;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .controls label {
+            display: block;
+            margin-bottom: 10px;
+        }
+        .controls input[type="range"] {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .info {
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Logo动态调整测试</h1>
+    
+    <div class="test-container">
+        <h2>测试步骤</h2>
+        <ol>
+            <li>点击"上传Logo"按钮上传一张图片</li>
+            <li>拖动"二维码大小"滑块，观察Logo大小的变化</li>
+            <li>查看控制台日志，确认Logo比例动态调整</li>
+        </ol>
+    </div>
+    
+    <div class="test-container">
+        <h2>控制面板</h2>
+        <div class="controls">
+            <label>
+                上传Logo:
+                <input type="file" id="logo-upload" accept="image/*">
+            </label>
+            
+            <label>
+                二维码大小: <span id="size-display">300px</span>
+                <input type="range" id="size-slider" min="200" max="500" value="300" step="10">
+            </label>
+            
+            <label>
+                二维码内容:
+                <input type="text" id="content-input" value="测试Logo动态调整功能" style="width: 100%; padding: 5px;">
+            </label>
+        </div>
+        
+        <div class="info">
+            <h3>预期效果:</h3>
+            <ul>
+                <li>200-250px: Logo最大14%</li>
+                <li>251-280px: Logo最大16%</li>
+                <li>281-300px: Logo最大18%</li>
+                <li>301px以上: Logo最大20%</li>
+            </ul>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h2>二维码预览</h2>
+        <div class="qr-preview" id="qr-preview">
+            <p>请先上传Logo，然后调整大小观察效果</p>
+        </div>
+    </div>
+    
+    <div class="test-container">
+        <h2>测试日志</h2>
+        <div id="test-log" style="font-family: monospace; background: #1e1e1e; color: #fff; padding: 10px; border-radius: 4px; max-height: 300px; overflow-y: auto;">
+        </div>
+    </div>
+
+    <!-- 加载依赖 -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+    <script src="../src/generators/logo-manager.js"></script>
+    
+    <script>
+        let renderer = null;
+        let logoDataURL = null;
+        
+        // 日志功能
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('test-log');
+            const timestamp = new Date().toLocaleTimeString();
+            const line = document.createElement('div');
+            line.style.marginBottom = '5px';
+            line.innerHTML = `<span style="color: #888">[${timestamp}]</span> <span style="color: ${type === 'error' ? '#ff6b6b' : type === 'success' ? '#51cf66' : '#74c0fc'}">${message}</span>`;
+            logDiv.appendChild(line);
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        // 初始化渲染器
+        function initRenderer(size = 300) {
+            try {
+                renderer = new ZXingRenderer({
+                    size: size,
+                    logo: logoDataURL,
+                    errorCorrectionLevel: 'H'
+                });
+                log(`渲染器初始化成功，尺寸: ${size}px`, 'success');
+                return true;
+            } catch (error) {
+                log(`渲染器初始化失败: ${error.message}`, 'error');
+                return false;
+            }
+        }
+        
+        // 生成二维码
+        async function generateQR() {
+            if (!renderer) {
+                log('渲染器未初始化', 'error');
+                return;
+            }
+            
+            try {
+                const content = document.getElementById('content-input').value || '测试内容';
+                const svgElement = await renderer.generate(content);
+                
+                const previewDiv = document.getElementById('qr-preview');
+                previewDiv.innerHTML = '';
+                previewDiv.appendChild(svgElement);
+                
+                log('二维码生成成功', 'success');
+            } catch (error) {
+                log(`二维码生成失败: ${error.message}`, 'error');
+            }
+        }
+        
+        // 处理Logo上传
+        document.getElementById('logo-upload').addEventListener('change', function(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoDataURL = e.target.result;
+                    log(`Logo上传成功: ${file.name}`, 'success');
+                    
+                    // 重新初始化渲染器并生成二维码
+                    const currentSize = parseInt(document.getElementById('size-slider').value);
+                    if (initRenderer(currentSize)) {
+                        generateQR();
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+        
+        // 处理大小调整
+        document.getElementById('size-slider').addEventListener('input', function(event) {
+            const newSize = parseInt(event.target.value);
+            document.getElementById('size-display').textContent = newSize + 'px';
+            
+            if (logoDataURL && renderer) {
+                log(`调整二维码大小到 ${newSize}px`);
+                
+                // 更新渲染器尺寸
+                renderer.setOptions({ size: newSize });
+                
+                // 重新生成二维码
+                generateQR();
+            } else if (!logoDataURL) {
+                log('请先上传Logo', 'error');
+            }
+        });
+        
+        // 处理内容变化
+        document.getElementById('content-input').addEventListener('input', function() {
+            if (logoDataURL && renderer) {
+                generateQR();
+            }
+        });
+        
+        // 页面加载完成
+        window.addEventListener('load', function() {
+            log('页面加载完成，请上传Logo开始测试');
+        });
+    </script>
+</body>
+</html> 

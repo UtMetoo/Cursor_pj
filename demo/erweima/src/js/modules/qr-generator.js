@@ -18,14 +18,23 @@ export class QRGeneratorFactory {
             errorCorrectionLevel: options.errorCorrectionLevel || 'H',
             margin: options.margin || 0.5,
             logo: options.logo || null,
-            cornerRadius: options.cornerRadius || 0
+            cornerRadius: options.cornerRadius || 0,
+            logoSize: options.logoSize || 0.18 // 设置Logo大小为18%
         };
         
+        // 确保ZXingRenderer类可用
+        if (typeof window.ZXingRenderer === 'undefined') {
+            console.error('ZXingRenderer类未加载');
+            throw new Error('二维码渲染器未加载，请刷新页面重试');
+        }
+        
         // 创建基础渲染器实例
-        const baseRenderer = new ZXingRenderer(mergedOptions);
+        const baseRenderer = new window.ZXingRenderer(mergedOptions);
 
         // 创建专用的WiFi渲染器实例
-        const wifiRenderer = new ZXingRenderer(mergedOptions);
+        const wifiRenderer = new window.ZXingRenderer(mergedOptions);
+        
+        console.log('二维码生成器创建成功，参数:', mergedOptions);
         
         // 返回不同类型的渲染器
         return {
@@ -39,9 +48,52 @@ export class QRGeneratorFactory {
      * 更新所有生成器的选项
      */
     static updateGeneratorsOption(generators, option, value) {
+        if (!generators) {
+            console.warn('生成器未初始化，无法更新选项');
+            return;
+        }
+        
+        console.log(`更新所有生成器的${option}=${value}`);
+        
+        // 收集所有当前选项
+        const currentOptions = {};
+        if (generators.text) {
+            currentOptions.cornerRadius = generators.text.cornerRadius;
+            currentOptions.logo = generators.text.options.logo;
+            currentOptions.logoSize = generators.text.options.logoSize || 0.18; // 更新默认值为18%
+        }
+        
+        // 更新每个生成器
         Object.values(generators).forEach(generator => {
-            generator.options[option] = value;
-            generator.setOptions({ [option]: value });
+            if (generator && typeof generator.setOptions === 'function') {
+                // 更新内部选项对象
+                if (generator.options) {
+                    generator.options[option] = value;
+                }
+                
+                // 创建更新选项对象，保留重要参数
+                const updateOptions = { [option]: value };
+                
+                // 确保圆角设置不丢失
+                if (option !== 'cornerRadius' && currentOptions.cornerRadius !== undefined) {
+                    updateOptions.cornerRadius = currentOptions.cornerRadius;
+                }
+                
+                // 确保Logo设置不丢失
+                if (option !== 'logo' && currentOptions.logo) {
+                    updateOptions.logo = currentOptions.logo;
+                }
+                
+                // 确保Logo大小设置不丢失
+                if (option !== 'logoSize' && currentOptions.logoSize) {
+                    updateOptions.logoSize = currentOptions.logoSize;
+                }
+                
+                // 应用更新
+                generator.setOptions(updateOptions);
+            } else {
+                console.warn('生成器实例无效或缺少setOptions方法');
+            }
         });
     }
 }

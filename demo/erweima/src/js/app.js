@@ -207,6 +207,11 @@ async function handleStyleChange(event) {
         // 更新预览容器的尺寸
         updatePreviewSize(value);
         
+        // 检查是否有Logo，如果有，输出调试信息
+        if (appState.qrOptions.logo) {
+            console.log(`调整二维码大小到${value}px，Logo将动态调整`);
+        }
+        
         // 更新生成器的尺寸
         QRGeneratorFactory.updateGeneratorsOption(generators, 'size', parseInt(value));
         QRGeneratorFactory.updateGeneratorsOption(generators, 'width', parseInt(value));

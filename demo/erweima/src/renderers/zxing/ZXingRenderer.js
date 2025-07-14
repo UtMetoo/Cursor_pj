@@ -80,7 +80,11 @@ class ZXingRenderer {
             }
             this.size = options.size;
         }
-        this.cornerRadius = options.cornerRadius || 0;
+        // 明确设置圆角值，即使是0
+        if (typeof options.cornerRadius === 'number') {
+            this.cornerRadius = options.cornerRadius;
+            console.log(`圆角已设置为: ${this.cornerRadius}px`);
+        }
     }
 
     /**
@@ -109,21 +113,24 @@ class ZXingRenderer {
                 throw new Error('生成的不是有效的SVG元素');
             }
 
+            // 先应用圆角效果（在其他操作之前）
+            if (this.cornerRadius > 0) {
+                const modules = svgElement.querySelectorAll('rect');
+                modules.forEach(module => {
+                    // 只给二维码模块添加圆角，不包括背景
+                    if (!module.classList.contains('qr-background')) {
+                        module.setAttribute('rx', this.cornerRadius);
+                        module.setAttribute('ry', this.cornerRadius);
+                    }
+                });
+            }
+
             // 应用自定义样式
             this.colorManager.applyColors(
                 svgElement,
                 this.colorManager.getForegroundColor(),
                 this.colorManager.getBackgroundColor()
             );
-
-            // 应用圆角效果
-            if (this.cornerRadius > 0) {
-                const modules = svgElement.querySelectorAll('rect:not(.qr-background)');
-                modules.forEach(module => {
-                    module.setAttribute('rx', this.cornerRadius);
-                    module.setAttribute('ry', this.cornerRadius);
-                });
-            }
 
             // 添加Logo（如果有）
             if (this.options.logo) {
@@ -243,15 +250,39 @@ class ZXingRenderer {
                 return;
             }
 
-            // 创建LogoManager实例
+            // 根据二维码大小动态计算Logo比例
+            // 优先使用setOptions中预计算的动态Logo大小
+            let logoSizeRatio = this.options.dynamicLogoSize || this.options.logoSize || 0.18; // 默认18%
+            
+            // 如果没有预计算的动态大小，则现场计算
+            if (!this.options.dynamicLogoSize) {
+                // 比例范围：14% - 20%
+                if (this.size <= 250) {
+                    logoSizeRatio = Math.min(logoSizeRatio, 0.14); // 小于等于250px时，最大14%
+                    console.log(`二维码尺寸${this.size}px较小，Logo比例调整为${logoSizeRatio * 100}%`);
+                } else if (this.size <= 280) {
+                    logoSizeRatio = Math.min(logoSizeRatio, 0.16); // 小于等于280px时，最大16%
+                    console.log(`二维码尺寸${this.size}px，Logo比例调整为${logoSizeRatio * 100}%`);
+                } else if (this.size <= 300) {
+                    logoSizeRatio = Math.min(logoSizeRatio, 0.18); // 小于等于300px时，最大18%
+                    console.log(`二维码尺寸${this.size}px，Logo比例调整为${logoSizeRatio * 100}%`);
+                } else {
+                    logoSizeRatio = Math.min(logoSizeRatio, 0.20); // 大于300px时，最大20%
+                    console.log(`二维码尺寸${this.size}px，Logo比例为${logoSizeRatio * 100}%`);
+                }
+            } else {
+                console.log(`使用预计算的Logo比例: ${logoSizeRatio * 100}%`);
+            }
+
+            // 创建LogoManager实例，使用动态计算的比例
             const logoManager = new LogoManager({
-                size: this.options.logoSize || 0.2,
-                margin: this.options.logoMargin || 0.1,
+                size: logoSizeRatio,                              // 使用动态计算的比例
+                margin: this.options.logoMargin || 0.05,         // 较小的边距
                 borderRadius: this.options.logoBorderRadius || 0.15,
                 borderColor: this.options.logoBorderColor || 'white',
-                borderWidth: this.options.logoBorderWidth || 5,
-                shadowBlur: this.options.logoShadowBlur || 5,
-                shadowColor: this.options.logoShadowColor || 'rgba(0, 0, 0, 0.2)'
+                borderWidth: this.options.logoBorderWidth || 2,  // 更薄的边框
+                shadowBlur: this.options.logoShadowBlur || 2,    // 更小的阴影
+                shadowColor: this.options.logoShadowColor || 'rgba(0, 0, 0, 0.1)'  // 低透明度阴影
             });
 
             // 获取SVG尺寸
@@ -261,7 +292,20 @@ class ZXingRenderer {
             // 添加Logo
             await logoManager.addLogoToSvg(svgElement, this.options.logo, width, height);
             
-            console.log('Logo添加成功');
+            // 重新应用圆角效果，确保它不会被Logo添加操作覆盖
+            if (this.cornerRadius > 0) {
+                const modules = svgElement.querySelectorAll('rect');
+                modules.forEach(module => {
+                    // 只给二维码模块添加圆角，排除Logo相关元素
+                    if (!module.classList.contains('qr-background') && 
+                        !module.classList.contains('logo-background')) {
+                        module.setAttribute('rx', this.cornerRadius);
+                        module.setAttribute('ry', this.cornerRadius);
+                    }
+                });
+            }
+            
+            console.log(`Logo添加成功，最终比例: ${logoSizeRatio * 100}%，并保持了圆角效果`);
         } catch (error) {
             console.error('添加Logo失败:', error);
             // 不抛出错误，让二维码生成继续进行
@@ -276,8 +320,41 @@ class ZXingRenderer {
             throw new Error('无效的二维码大小');
         }
 
+        // 保存当前的圆角设置，以防在合并选项时丢失
+        const currentCornerRadius = this.cornerRadius;
+        
+        // 合并选项
         this.options = { ...this.options, ...newOptions };
+        
+        // 应用样式设置
         this.setStyle(newOptions);
+        
+        // 如果新选项中没有明确指定圆角，则恢复之前的设置
+        if (newOptions.cornerRadius === undefined && currentCornerRadius !== undefined) {
+            this.cornerRadius = currentCornerRadius;
+            console.log(`恢复之前的圆角设置: ${this.cornerRadius}px`);
+        }
+        
+        // 如果尺寸发生变化且有Logo，重新计算动态Logo大小
+        if (newOptions.size && this.options.logo) {
+            const originalLogoSize = this.options.logoSize || 0.18; // 获取原始设置的Logo大小
+            let dynamicLogoSize = originalLogoSize;
+            
+            // 根据新尺寸动态调整Logo比例（与addLogo方法中的逻辑保持一致）
+            if (newOptions.size <= 250) {
+                dynamicLogoSize = Math.min(originalLogoSize, 0.14); // 最大14%
+            } else if (newOptions.size <= 280) {
+                dynamicLogoSize = Math.min(originalLogoSize, 0.16); // 最大16%
+            } else if (newOptions.size <= 300) {
+                dynamicLogoSize = Math.min(originalLogoSize, 0.18); // 最大18%
+            } else {
+                dynamicLogoSize = Math.min(originalLogoSize, 0.20); // 最大20%
+            }
+            
+            // 更新动态计算的Logo大小
+            this.options.dynamicLogoSize = dynamicLogoSize;
+            console.log(`尺寸变化：${newOptions.size}px，Logo比例动态调整为${dynamicLogoSize * 100}%`);
+        }
     }
 
     /**
@@ -386,7 +463,7 @@ class ZXingRenderer {
 
 // 导出为全局变量
 if (typeof window !== 'undefined') {
-    window.ZXingRenderer = ZXingRenderer; 
+window.ZXingRenderer = ZXingRenderer; 
 } else {
     global.ZXingRenderer = ZXingRenderer;
 } 

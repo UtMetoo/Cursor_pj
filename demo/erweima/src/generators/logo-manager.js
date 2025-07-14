@@ -4,13 +4,13 @@ class LogoManager {
         console.log('[LogoManager] 初始化配置:', options);
         
         this.options = {
-            size: options.size || 0.2,          // Logo大小占二维码的比例
-            margin: options.margin || 0.1,       // Logo边距占Logo大小的比例
+            size: options.size || 0.18,          // Logo大小占二维码的比例 (使用18%默认值)
+            margin: options.margin || 0.05,       // Logo边距占Logo大小的比例
             borderRadius: options.borderRadius || 0.15, // Logo圆角占Logo大小的比例
             borderColor: options.borderColor || 'white', // Logo边框颜色
-            borderWidth: options.borderWidth || 5,      // Logo边框宽度
-            shadowBlur: options.shadowBlur || 5,        // 阴影模糊半径
-            shadowColor: options.shadowColor || 'rgba(0, 0, 0, 0.2)' // 阴影颜色
+            borderWidth: options.borderWidth || 2,      // Logo边框宽度
+            shadowBlur: options.shadowBlur || 2,        // 阴影模糊半径
+            shadowColor: options.shadowColor || 'rgba(0, 0, 0, 0.1)' // 阴影颜色
         };
     }
 
@@ -69,8 +69,10 @@ class LogoManager {
         bgCircle.setAttribute('cx', centerX);
         bgCircle.setAttribute('cy', centerY);
         bgCircle.setAttribute('r', radius + this.options.borderWidth);
-        bgCircle.setAttribute('fill', 'white');
+        bgCircle.setAttribute('fill', this.options.borderColor);
         bgCircle.setAttribute('filter', `url(#shadow-${uniqueId})`);
+        // 确保添加了类名，帮助选择器识别
+        bgCircle.classList.add('logo-background');
         return bgCircle;
     }
 
@@ -85,6 +87,8 @@ class LogoManager {
         image.setAttribute('height', String(size));
         image.setAttribute('href', logoUrl);
         image.setAttribute('clip-path', `url(#logo-clip-${uniqueId})`);
+        // 确保添加了类名，帮助选择器识别
+        image.classList.add('logo-image');
         return image;
     }
 

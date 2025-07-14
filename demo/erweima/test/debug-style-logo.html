@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>二维码样式和Logo调试工具</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            color: #333;
+        }
+        .test-section {
+            margin: 2rem 0;
+            padding: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+        }
+        .test-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .test-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            overflow: hidden;
+            padding: 1rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .test-card h3 {
+            margin-top: 0;
+            margin-bottom: 1rem;
+            font-size: 1rem;
+        }
+        .qr-container {
+            width: 200px;
+            height: 200px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+        .control-panel {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 1rem;
+        }
+        button {
+            background: #4a89dc;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 0.5rem 0;
+        }
+        button:hover {
+            background: #3b7dd8;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        input, select {
+            width: 100%;
+            padding: 0.5rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        .console {
+            background: #1c1c1e;
+            color: #fff;
+            padding: 1rem;
+            border-radius: 8px;
+            margin: 1rem 0;
+            font-family: monospace;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .debug-info {
+            margin-top: 0.5rem;
+            font-size: 0.85rem;
+            color: #666;
+        }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; }
+        .error { color: #dc3545; }
+        .info { color: #17a2b8; }
+    </style>
+</head>
+<body>
+    <h1>二维码样式和Logo调试工具</h1>
+    <p>这个工具可以帮助诊断圆角效果和Logo添加问题</p>
+    
+    <div class="control-panel">
+        <h2>测试控制面板</h2>
+        <div class="control-grid">
+            <div>
+                <label for="qr-content">二维码内容:</label>
+                <input type="text" id="qr-content" value="https://example.com" />
+                
+                <label for="qr-size">二维码尺寸:</label>
+                <input type="range" id="qr-size" min="100" max="300" value="200" />
+                <span id="size-value">200px</span>
+                
+                <label for="corner-radius">圆角半径:</label>
+                <input type="range" id="corner-radius" min="0" max="10" value="0" />
+                <span id="radius-value">0px</span>
+            </div>
+            <div>
+                <label for="logo-size">Logo大小比例:</label>
+                <input type="range" id="logo-size" min="14" max="20" value="18" />
+                <span id="logo-size-value">18%</span>
+                
+                <label for="error-correction">错误纠正级别:</label>
+                <select id="error-correction">
+                    <option value="L">L - 低 (7%)</option>
+                    <option value="M">M - 中 (15%)</option>
+                    <option value="Q">Q - 高 (25%)</option>
+                    <option value="H" selected>H - 最高 (30%)</option>
+                </select>
+                
+                <label for="logo-file">上传Logo:</label>
+                <input type="file" id="logo-file" accept="image/*" />
+            </div>
+        </div>
+        <div>
+            <button id="generate-btn">生成测试</button>
+            <button id="debug-svg-btn">调试SVG结构</button>
+            <button id="reset-btn">重置</button>
+        </div>
+    </div>
+    
+    <div class="test-section">
+        <h2>测试结果</h2>
+        <div class="test-grid" id="test-grid"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>SVG代码检查</h2>
+        <div id="svg-inspector" class="console"></div>
+    </div>
+    
+    <div class="test-section">
+        <h2>调试控制台</h2>
+        <div id="debug-console" class="console"></div>
+    </div>
+
+    <!-- 加载ZXing库 -->
+    <script src="https://unpkg.com/@zxing/library@0.21.3/umd/index.min.js"></script>
+    
+    <!-- 加载项目组件 -->
+    <script src="../src/renderers/zxing/svgBuilder.js"></script>
+    <script src="../src/renderers/zxing/colorManager.js"></script>
+    <script src="../src/renderers/zxing/ZXingRenderer.js"></script>
+    <script src="../src/generators/logo-manager.js"></script>
+    
+    <script>
+        // 调试工具
+        const Debug = {
+            log(message, type = 'info') {
+                const console = document.getElementById('debug-console');
+                const timestamp = new Date().toLocaleTimeString();
+                const line = document.createElement('div');
+                line.className = type;
+                line.innerHTML = `<span>[${timestamp}]</span> ${message}`;
+                console.appendChild(line);
+                console.scrollTop = console.scrollHeight;
+            },
+            
+            clear() {
+                document.getElementById('debug-console').innerHTML = '';
+                document.getElementById('svg-inspector').innerHTML = '';
+            },
+            
+            inspectSVG(svg) {
+                const inspector = document.getElementById('svg-inspector');
+                inspector.innerHTML = '';
+                
+                // 显示SVG字符串
+                const svgString = new XMLSerializer().serializeToString(svg);
+                const pre = document.createElement('pre');
+                pre.textContent = svgString;
+                inspector.appendChild(pre);
+                
+                // 分析SVG结构
+                this.log('分析SVG结构...', 'info');
+                
+                // 检查圆角设置
+                const rects = svg.querySelectorAll('rect');
+                let rectWithRx = 0;
+                rects.forEach(rect => {
+                    if (rect.hasAttribute('rx') && rect.getAttribute('rx') !== '0') {
+                        rectWithRx++;
+                    }
+                });
+                
+                this.log(`找到 ${rects.length} 个矩形元素，其中 ${rectWithRx} 个有圆角设置`, 'info');
+                
+                // 检查Logo相关元素
+                const logoElems = svg.querySelectorAll('.logo-background, .logo-image');
+                this.log(`找到 ${logoElems.length} 个Logo相关元素`, 'info');
+                
+                // 检查类名应用情况
+                let classReport = {};
+                svg.querySelectorAll('*').forEach(el => {
+                    if (el.classList.length > 0) {
+                        Array.from(el.classList).forEach(cls => {
+                            classReport[cls] = (classReport[cls] || 0) + 1;
+                        });
+                    }
+                });
+                
+                this.log('SVG元素类名统计:', 'info');
+                Object.entries(classReport).forEach(([cls, count]) => {
+                    this.log(`- 类名 "${cls}": ${count}个元素`, 'info');
+                });
+            }
+        };
+        
+        // 测试辅助类
+        class QRTester {
+            constructor() {
+                this.testGrid = document.getElementById('test-grid');
+                this.setupListeners();
+                this.logoDataURL = null;
+                
+                // 默认配置
+                this.config = {
+                    content: 'https://example.com',
+                    size: 200,
+                    cornerRadius: 0,
+                    logoSize: 0.18, // 更新默认Logo大小为18%
+                    errorCorrection: 'H'
+                };
+            }
+            
+            setupListeners() {
+                // 控制面板交互
+                document.getElementById('qr-content').addEventListener('input', e => {
+                    this.config.content = e.target.value;
+                });
+                
+                document.getElementById('qr-size').addEventListener('input', e => {
+                    this.config.size = parseInt(e.target.value);
+                    document.getElementById('size-value').textContent = `${this.config.size}px`;
+                });
+                
+                document.getElementById('corner-radius').addEventListener('input', e => {
+                    this.config.cornerRadius = parseInt(e.target.value);
+                    document.getElementById('radius-value').textContent = `${this.config.cornerRadius}px`;
+                });
+                
+                document.getElementById('logo-size').addEventListener('input', e => {
+                    this.config.logoSize = parseInt(e.target.value) / 100;
+                    document.getElementById('logo-size-value').textContent = `${parseInt(e.target.value)}%`;
+                });
+                
+                document.getElementById('error-correction').addEventListener('change', e => {
+                    this.config.errorCorrection = e.target.value;
+                });
+                
+                // Logo上传
+                document.getElementById('logo-file').addEventListener('change', e => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.onload = e => {
+                            this.logoDataURL = e.target.result;
+                            Debug.log('Logo已上传', 'success');
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+                
+                // 按钮操作
+                document.getElementById('generate-btn').addEventListener('click', () => this.runTests());
+                document.getElementById('debug-svg-btn').addEventListener('click', () => this.debugLastSVG());
+                document.getElementById('reset-btn').addEventListener('click', () => this.reset());
+            }
+            
+            reset() {
+                Debug.clear();
+                this.testGrid.innerHTML = '';
+                this.config = {
+                    content: 'https://example.com',
+                    size: 200,
+                    cornerRadius: 0,
+                    logoSize: 0.18, // 更新默认Logo大小为18%
+                    errorCorrection: 'H'
+                };
+                
+                document.getElementById('qr-content').value = this.config.content;
+                document.getElementById('qr-size').value = this.config.size;
+                document.getElementById('corner-radius').value = this.config.cornerRadius;
+                document.getElementById('logo-size').value = this.config.logoSize * 100; // 更新为18
+                document.getElementById('error-correction').value = this.config.errorCorrection;
+                document.getElementById('logo-file').value = '';
+                
+                document.getElementById('size-value').textContent = `${this.config.size}px`;
+                document.getElementById('radius-value').textContent = `${this.config.cornerRadius}px`;
+                document.getElementById('logo-size-value').textContent = `${this.config.logoSize * 100}%`; // 更新为18%
+                
+                this.logoDataURL = null;
+                
+                Debug.log('测试环境已重置', 'info');
+            }
+            
+            async runTests() {
+                Debug.clear();
+                this.testGrid.innerHTML = '';
+                Debug.log('开始运行测试...', 'info');
+                
+                // 测试1: 基本二维码
+                await this.testBasicQR();
+                
+                // 测试2: 圆角效果
+                if (this.config.cornerRadius > 0) {
+                    await this.testCornerRadius();
+                }
+                
+                // 测试3: 带Logo的二维码
+                if (this.logoDataURL) {
+                    await this.testLogoQR();
+                }
+                
+                // 测试4: 带Logo和圆角的二维码
+                if (this.logoDataURL && this.config.cornerRadius > 0) {
+                    await this.testLogoWithCornerRadius();
+                }
+                
+                // 测试5: 小尺寸Logo适应性测试
+                if (this.logoDataURL) {
+                    await this.testSmallSizeWithLogo();
+                }
+                
+                Debug.log('测试完成', 'success');
+            }
+            
+            createTestCard(title) {
+                const card = document.createElement('div');
+                card.className = 'test-card';
+                
+                const heading = document.createElement('h3');
+                heading.textContent = title;
+                card.appendChild(heading);
+                
+                const container = document.createElement('div');
+                container.className = 'qr-container';
+                card.appendChild(container);
+                
+                const info = document.createElement('div');
+                info.className = 'debug-info';
+                card.appendChild(info);
+                
+                this.testGrid.appendChild(card);
+                return { card, container, info };
+            }
+            
+            async testBasicQR() {
+                Debug.log('测试基本二维码', 'info');
+                const { container, info } = this.createTestCard('基本二维码');
+                
+                try {
+                    // 创建渲染器
+                    const renderer = new ZXingRenderer({
+                        size: this.config.size,
+                        errorCorrectionLevel: this.config.errorCorrection
+                    });
+                    
+                    // 生成二维码
+                    const svg = await renderer.generate(this.config.content);
+                    container.appendChild(svg);
+                    
+                    // 添加调试信息
+                    info.innerHTML = `
+                        尺寸: ${this.config.size}px<br>
+                        纠错级别: ${this.config.errorCorrection}
+                    `;
+                    
+                    Debug.log('基本二维码生成成功', 'success');
+                    this.lastSVG = svg.cloneNode(true);
+                } catch (error) {
+                    Debug.log(`基本二维码生成失败: ${error.message}`, 'error');
+                    container.innerHTML = `<div class="error">生成失败: ${error.message}</div>`;
+                }
+            }
+            
+            async testCornerRadius() {
+                Debug.log('测试圆角效果', 'info');
+                const { container, info } = this.createTestCard('圆角效果');
+                
+                try {
+                    // 创建渲染器
+                    const renderer = new ZXingRenderer({
+                        size: this.config.size,
+                        cornerRadius: this.config.cornerRadius,
+                        errorCorrectionLevel: this.config.errorCorrection
+                    });
+                    
+                    // 生成二维码
+                    const svg = await renderer.generate(this.config.content);
+                    container.appendChild(svg);
+                    
+                    // 添加调试信息
+                    info.innerHTML = `
+                        尺寸: ${this.config.size}px<br>
+                        圆角: ${this.config.cornerRadius}px<br>
+                        纠错级别: ${this.config.errorCorrection}
+                    `;
+                    
+                    // 检查圆角效果
+                    const rects = svg.querySelectorAll('rect');
+                    let rectWithRx = 0;
+                    rects.forEach(rect => {
+                        if (rect.hasAttribute('rx') && rect.getAttribute('rx') !== '0') {
+                            rectWithRx++;
+                        }
+                    });
+                    
+                    if (rectWithRx > 0) {
+                        Debug.log(`圆角效果应用成功: ${rectWithRx}个矩形元素有圆角`, 'success');
+                    } else {
+                        Debug.log('圆角效果应用失败: 没有矩形元素有圆角属性', 'error');
+                    }
+                    
+                } catch (error) {
+                    Debug.log(`圆角效果测试失败: ${error.message}`, 'error');
+                    container.innerHTML = `<div class="error">生成失败: ${error.message}</div>`;
+                }
+            }
+            
+            async testLogoQR() {
+                Debug.log('测试Logo添加', 'info');
+                const { container, info } = this.createTestCard('带Logo二维码');
+                
+                try {
+                    // 创建渲染器
+                    const renderer = new ZXingRenderer({
+                        size: this.config.size,
+                        logo: this.logoDataURL,
+                        logoSize: this.config.logoSize,
+                        errorCorrectionLevel: this.config.errorCorrection
+                    });
+                    
+                    // 生成二维码
+                    const svg = await renderer.generate(this.config.content);
+                    container.appendChild(svg);
+                    
+                    // 添加调试信息
+                    info.innerHTML = `
+                        尺寸: ${this.config.size}px<br>
+                        Logo尺寸: ${this.config.logoSize * 100}%<br>
+                        纠错级别: ${this.config.errorCorrection}
+                    `;
+                    
+                    // 检查Logo元素
+                    const logoElems = svg.querySelectorAll('.logo-background, .logo-image, image');
+                    if (logoElems.length > 0) {
+                        Debug.log(`Logo添加成功: 找到${logoElems.length}个Logo相关元素`, 'success');
+                    } else {
+                        Debug.log('Logo添加可能失败: 未找到Logo相关元素', 'warning');
+                    }
+                    
+                } catch (error) {
+                    Debug.log(`Logo添加测试失败: ${error.message}`, 'error');
+                    container.innerHTML = `<div class="error">生成失败: ${error.message}</div>`;
+                }
+            }
+            
+            async testLogoWithCornerRadius() {
+                Debug.log('测试Logo和圆角组合效果', 'info');
+                const { container, info } = this.createTestCard('Logo + 圆角');
+                
+                try {
+                    // 创建渲染器
+                    const renderer = new ZXingRenderer({
+                        size: this.config.size,
+                        cornerRadius: this.config.cornerRadius,
+                        logo: this.logoDataURL,
+                        logoSize: this.config.logoSize,
+                        errorCorrectionLevel: this.config.errorCorrection
+                    });
+                    
+                    // 生成二维码
+                    const svg = await renderer.generate(this.config.content);
+                    container.appendChild(svg);
+                    this.lastSVG = svg.cloneNode(true);
+                    
+                    // 添加调试信息
+                    info.innerHTML = `
+                        尺寸: ${this.config.size}px<br>
+                        圆角: ${this.config.cornerRadius}px<br>
+                        Logo尺寸: ${this.config.logoSize * 100}%<br>
+                        纠错级别: ${this.config.errorCorrection}
+                    `;
+                    
+                    // 检查圆角和Logo元素
+                    const rects = svg.querySelectorAll('rect');
+                    let rectWithRx = 0;
+                    rects.forEach(rect => {
+                        if (rect.hasAttribute('rx') && rect.getAttribute('rx') !== '0') {
+                            rectWithRx++;
+                        }
+                    });
+                    
+                    const logoElems = svg.querySelectorAll('.logo-background, .logo-image, image');
+                    
+                    if (rectWithRx > 0 && logoElems.length > 0) {
+                        Debug.log(`组合测试成功: 找到${rectWithRx}个带圆角的矩形和${logoElems.length}个Logo元素`, 'success');
+                    } else if (rectWithRx === 0) {
+                        Debug.log('组合测试部分失败: 圆角效果丢失', 'warning');
+                    } else if (logoElems.length === 0) {
+                        Debug.log('组合测试部分失败: Logo元素缺失', 'warning');
+                    }
+                    
+                } catch (error) {
+                    Debug.log(`组合测试失败: ${error.message}`, 'error');
+                    container.innerHTML = `<div class="error">生成失败: ${error.message}</div>`;
+                }
+            }
+            
+            // 新增：小尺寸Logo测试
+            async testSmallSizeWithLogo() {
+                if (!this.logoDataURL) {
+                    Debug.log('跳过小尺寸测试：未上传Logo', 'warning');
+                    return;
+                }
+                
+                Debug.log('测试小尺寸二维码的Logo适应性', 'info');
+                const sizes = [200, 220, 250, 300];
+                
+                for (const size of sizes) {
+                    const { container, info } = this.createTestCard(`${size}px + Logo`);
+                    
+                    try {
+                        // 创建渲染器
+                        const renderer = new ZXingRenderer({
+                            size: size,
+                            logo: this.logoDataURL,
+                            logoSize: this.config.logoSize,
+                            errorCorrectionLevel: this.config.errorCorrection
+                        });
+                        
+                        // 生成二维码
+                        const svg = await renderer.generate(this.config.content);
+                        container.appendChild(svg);
+                        
+                        // 添加调试信息
+                        info.innerHTML = `
+                            尺寸: ${size}px<br>
+                            初始Logo比例: ${this.config.logoSize * 100}%<br>
+                            纠错级别: ${this.config.errorCorrection}<br>
+                            <span style="color: #666;">系统将自动调整Logo大小</span>
+                        `;
+                        
+                        Debug.log(`${size}px尺寸二维码生成成功`, 'success');
+                        
+                    } catch (error) {
+                        Debug.log(`${size}px尺寸测试失败: ${error.message}`, 'error');
+                        container.innerHTML = `<div class="error">生成失败: ${error.message}</div>`;
+                    }
+                }
+            }
+            
+            debugLastSVG() {
+                if (this.lastSVG) {
+                    Debug.inspectSVG(this.lastSVG);
+                } else {
+                    Debug.log('没有可用的SVG进行调试', 'error');
+                }
+            }
+        }
+        
+        // 初始化测试器
+        document.addEventListener('DOMContentLoaded', () => {
+            const tester = new QRTester();
+            Debug.log('调试工具初始化完成', 'info');
+            Debug.log('请上传Logo并设置参数，然后点击"生成测试"按钮', 'info');
+        });
+    </script>
+</body>
+</html> 
